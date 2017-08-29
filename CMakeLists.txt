@@ -100,6 +100,7 @@ include_directories (
 add_subdirectory ( ym-common )
 add_subdirectory ( ym-base )
 add_subdirectory ( ym-sat )
+add_subdirectory ( cython-src )
 
 #add_subdirectory ( gtest )
 
