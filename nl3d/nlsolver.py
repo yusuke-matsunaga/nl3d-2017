@@ -25,8 +25,18 @@ def solve_nlink(graph) :
     if status == 'OK' :
         return status, solution
 
-    print('plan_B')
-    status, solution = plan_B(graph)
+    print('plan_B11')
+    status, solution = plan_B11(graph)
+    if status == 'OK' :
+        return status, solution
+
+    print('plan_B10')
+    status, solution = plan_B10(graph)
+    if status == 'OK' :
+        return status, solution
+
+    print('plan_B01')
+    status, solution = plan_B01(graph)
     if status == 'OK' :
         return status, solution
 
@@ -56,7 +66,7 @@ def plan_A(graph) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B(graph) :
+def plan_B11(graph) :
 
     solver_type = 'glueminisat2'
 
@@ -65,6 +75,43 @@ def plan_B(graph) :
 
     enc.make_base_constraint(False)
     enc.make_lshape_constraint()
+    enc.make_yshape_constraint()
+    enc.make_ushape_constraint()
+    enc.make_wshape_constraint()
+    #enc.make_w2shape_constraint()
+
+    # 問題を解く．
+    return enc.solve()
+
+
+## @brief 最も簡単な戦略
+def plan_B10(graph) :
+
+    solver_type = 'glueminisat2'
+
+    # 問題を表す CNF式を生成する．
+    enc = NlCnfEncoder(graph, solver_type)
+
+    enc.make_base_constraint(False)
+    enc.make_lshape_constraint()
+    enc.make_ushape_constraint()
+    enc.make_wshape_constraint()
+    #enc.make_w2shape_constraint()
+
+    # 問題を解く．
+    return enc.solve()
+
+
+## @brief 最も簡単な戦略
+def plan_B01(graph) :
+
+    solver_type = 'glueminisat2'
+
+    # 問題を表す CNF式を生成する．
+    enc = NlCnfEncoder(graph, solver_type)
+
+    enc.make_base_constraint(False)
+    enc.make_yshape_constraint()
     enc.make_ushape_constraint()
     enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()

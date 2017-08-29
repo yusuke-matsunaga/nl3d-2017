@@ -166,6 +166,22 @@ class NlNode :
     def z2_edge(self) :
         return self.__z2_edge
 
+    ## @brief 隣接するノードを返す．
+    # @param[in] dir_id 方向
+    #
+    # dir_idの意味は以下の通り
+    # - 0: 右(x1)
+    # - 1: 左(x2)
+    # - 2: 上(y1)
+    # - 3: 下(y2)
+    # - 4:   (z1)
+    # - 5:   (z2)
+    def adj_node(self, dir_id) :
+        edge = self.edge(dir_id)
+        if edge == None :
+            return None
+        return edge.alt_node(self)
+
     ## @brief 終端フラグ
     @property
     def is_terminal(self) :
