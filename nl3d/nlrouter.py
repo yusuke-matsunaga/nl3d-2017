@@ -205,7 +205,7 @@ class NlRouter :
             for i in range(0, self.__net_num) :
                 self.__reroute(i)
             t_length, t_bend = self.count()
-            if t_length == t_length0 and t_bend == t_bend0 :
+            if t_length >= t_length0 and t_bend >= t_bend0 :
                 break
 
     ## @brief 配線結果を NlSolution に変換する．

@@ -18,30 +18,30 @@ from nl3d.nlsolution import NlSolution
 # status は "OK", "NG", "Abort" のいずれか
 # solution は "OK" の時は NlSolution のオブジェクト
 # それ以外は None
-def solve_nlink(graph) :
+def solve_nlink(graph, timeout) :
 
     print('plan_A')
-    status, solution = plan_A(graph)
+    status, solution = plan_A(graph, timeout)
     if status == 'OK' :
         return status, solution
 
     print('plan_B11')
-    status, solution = plan_B11(graph)
+    status, solution = plan_B11(graph, timeout)
     if status == 'OK' :
         return status, solution
 
     print('plan_B10')
-    status, solution = plan_B10(graph)
+    status, solution = plan_B10(graph, timeout)
     if status == 'OK' :
         return status, solution
 
     print('plan_B01')
-    status, solution = plan_B01(graph)
+    status, solution = plan_B01(graph, timeout)
     if status == 'OK' :
         return status, solution
 
     print('plan_C')
-    status, solution = plan_C(graph)
+    status, solution = plan_C(graph, timeout)
     if status == 'OK' :
         return status, solution
 
@@ -49,7 +49,7 @@ def solve_nlink(graph) :
 
 
 ## @brief 最も簡単な戦略
-def plan_A(graph) :
+def plan_A(graph, timeout) :
 
     solver_type = 'glueminisat2'
 
@@ -57,16 +57,16 @@ def plan_A(graph) :
     enc = NlCnfEncoder(graph, solver_type)
 
     enc.make_base_constraint(True)
-    enc.make_ushape_constraint()
-    enc.make_wshape_constraint()
+    #enc.make_ushape_constraint()
+    #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
     # 問題を解く．
-    return enc.solve()
+    return enc.solve(timeout)
 
 
 ## @brief 最も簡単な戦略
-def plan_B11(graph) :
+def plan_B11(graph, timeout) :
 
     solver_type = 'glueminisat2'
 
@@ -76,16 +76,16 @@ def plan_B11(graph) :
     enc.make_base_constraint(False)
     enc.make_lshape_constraint()
     enc.make_yshape_constraint()
-    enc.make_ushape_constraint()
-    enc.make_wshape_constraint()
+    #enc.make_ushape_constraint()
+    #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
     # 問題を解く．
-    return enc.solve()
+    return enc.solve(timeout)
 
 
 ## @brief 最も簡単な戦略
-def plan_B10(graph) :
+def plan_B10(graph, timeout) :
 
     solver_type = 'glueminisat2'
 
@@ -94,16 +94,16 @@ def plan_B10(graph) :
 
     enc.make_base_constraint(False)
     enc.make_lshape_constraint()
-    enc.make_ushape_constraint()
-    enc.make_wshape_constraint()
+    #enc.make_ushape_constraint()
+    #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
     # 問題を解く．
-    return enc.solve()
+    return enc.solve(timeout)
 
 
 ## @brief 最も簡単な戦略
-def plan_B01(graph) :
+def plan_B01(graph, timeout) :
 
     solver_type = 'glueminisat2'
 
@@ -112,16 +112,16 @@ def plan_B01(graph) :
 
     enc.make_base_constraint(False)
     enc.make_yshape_constraint()
-    enc.make_ushape_constraint()
-    enc.make_wshape_constraint()
+    #enc.make_ushape_constraint()
+    #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
     # 問題を解く．
-    return enc.solve()
+    return enc.solve(timeout)
 
 
 ## @brief 最も簡単な戦略
-def plan_C(graph) :
+def plan_C(graph, timeout) :
 
     solver_type = 'glueminisat2'
 
@@ -129,9 +129,9 @@ def plan_C(graph) :
     enc = NlCnfEncoder(graph, solver_type)
 
     enc.make_base_constraint(False)
-    enc.make_ushape_constraint()
-    enc.make_wshape_constraint()
+    #enc.make_ushape_constraint()
+    #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
     # 問題を解く．
-    return enc.solve()
+    return enc.solve(timeout)

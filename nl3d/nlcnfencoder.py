@@ -29,6 +29,7 @@ class NlCnfEncoder :
         solver = Solver(solver_type)
         self.__graph = graph
         self.__solver = solver
+        self.__binary_encoding = False
 
         # 枝に対応する変数を作る．
         # 結果は edge_var_list に格納する．
@@ -42,9 +43,14 @@ class NlCnfEncoder :
         # __node_vars_list[node.id] に node に対応する変数のリストが入る．
         # 実際にはその変数に対応するリテラルを入れる．
         nn = graph.net_num
-        nn_log2 = math.ceil(math.log2(nn + 1))
-        self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn_log2)] \
-                                 for node in graph.node_list]
+
+        if self.__binary_encoding :
+            nn_log2 = math.ceil(math.log2(nn + 1))
+            self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn_log2)] \
+                                     for node in graph.node_list]
+        else :
+            self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn)] \
+                                     for node in graph.node_list]
 
     ## @brief 基本的な制約を作る．
     # @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
@@ -52,8 +58,9 @@ class NlCnfEncoder :
         solver = self.__solver
         graph = self.__graph
 
-        # 節点が使われている時 True になる変数を用意する．
-        self.__uvar_list = [Literal(solver.new_variable()) for node in graph.node_list]
+        if not no_slack :
+            # 節点が使われている時 True になる変数を用意する．
+            self.__uvar_list = [Literal(solver.new_variable()) for node in graph.node_list]
 
         # 各節点に対して隣接する枝の条件を作る．
         for node in graph.node_list :
@@ -63,6 +70,7 @@ class NlCnfEncoder :
         for edge in graph.edge_list :
             self.__make_adj_nodes_constraint(edge)
 
+        self.make_ushape_constraint()
 
     ## @brief U字(コの字)制約を作る．
     #
@@ -113,14 +121,10 @@ class NlCnfEncoder :
         var2 = self.__edge_var(edge2)
         var3 = self.__edge_var(edge3)
         var4 = self.__edge_var(edge4)
-        if not (node_00.is_terminal or node_10.is_terminal) :
-            solver.add_clause([~var1, ~var2, ~var3])
-        if not (node_00.is_terminal or node_01.is_terminal) :
-            solver.add_clause([~var1, ~var2, ~var4])
-        if not (node_10.is_terminal or node_11.is_terminal) :
-            solver.add_clause([~var1, ~var3, ~var4])
-        if not (node_01.is_terminal or node_11.is_terminal) :
-            solver.add_clause([~var2, ~var3, ~var4])
+        solver.add_clause([~var1, ~var2, ~var3       ])
+        solver.add_clause([~var1, ~var2,        ~var4])
+        solver.add_clause([~var1,        ~var3, ~var4])
+        solver.add_clause([       ~var2, ~var3, ~var4])
 
 
     ## @brief 2x3マスのコの字経路を禁止する制約を作る．
@@ -413,7 +417,7 @@ class NlCnfEncoder :
     ##
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
-    def solve(self) :
+    def solve(self, timeout) :
         stat, model = self.__solver.solve()
         if stat == Bool3.TRUE :
             route_list = self.__decode_model(model)
@@ -430,27 +434,17 @@ class NlCnfEncoder :
 
     ## @brief SATモデルから経路のリストを作る．
     def __decode_model(self, model) :
-
-        self.__dump_model(model)
-
         net_num = self.__graph.net_num
         route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
-
         return route_list
 
     def __find_route(self, net_id, model) :
-
-        print('Processing Net#{}'.format(net_id))
-
         graph = self.__graph
         start, end = graph.terminal_node_pair(net_id)
         prev = None
         node = start
         route = []
         while True :
-
-            print(node.str())
-
             route.append( (node.x, node.y, node.z) )
             if node == end :
                 break
@@ -483,10 +477,14 @@ class NlCnfEncoder :
                 for x in range(0, w) :
                     node = graph.node(x, y, z)
                     lvar_list = self.__node_vars_list[node.id]
-                    label = 0
-                    for i, lvar in enumerate(lvar_list) :
-                        if model[lvar.varid().val()] == Bool3.TRUE :
-                            label += (1 << i)
+                    if self.__binary_encoding :
+                        label = 0
+                        for i, lvar in enumerate(lvar_list) :
+                            if model[lvar.varid().val()] == Bool3.TRUE :
+                                label += (1 << i)
+                        for i, lvar in enumerate(lvar_list) :
+                            if model[lvar.varid().val()] == Bool3.TRUE :
+                                label = i
                     print(' {:2d}'.format(label), end='')
                     if x < w - 1 :
                         edge = node.x2_edge
@@ -555,40 +553,42 @@ class NlCnfEncoder :
     def __make_adj_nodes_constraint(self, edge) :
         solver = self.__solver
         evar = self.__edge_var_list[edge.id]
-        nvar_list1 = self.__node_vars_list[edge.node1.id]
-        nvar_list2 = self.__node_vars_list[edge.node2.id]
-        n = len(nvar_list1)
+        var_list1 = self.__node_vars_list[edge.node1.id]
+        var_list2 = self.__node_vars_list[edge.node2.id]
+        n = len(var_list1)
         for i in range(0, n) :
-            nvar1 = nvar_list1[i]
-            nvar2 = nvar_list2[i]
-            make_conditional_equal(solver, evar, nvar1, nvar2)
-
+            var1 = var_list1[i]
+            var2 = var_list2[i]
+            solver.add_clause([~evar, ~var1,  var2])
+            solver.add_clause([~evar,  var1, ~var2])
+        if self.__binary_encoding :
+            pass
+        else :
+            # cvar が False なら var_list1 と var_list2 は等しくない．
+            for i in range(0, n) :
+                var1 = var_list1[i]
+                var2 = var_list2[i]
+                solver.add_clause([ evar, ~var1, ~var2])
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
     # @param[in] net_id 固定する線分番号
     def __make_label_constraint(self, node, net_id) :
         lvar_list = self.__node_vars_list[node.id]
-        for i, lvar in enumerate(lvar_list) :
-            if (1 << i) & (net_id + 1) :
-                tmp_lit = lvar
-            else :
-                tmp_lit = ~lvar
-            self.__solver.add_clause([tmp_lit])
-
-
-    ## @brief 条件付きでラベル値を固定する制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] node 対象のノード
-    # @param[in] net_id 固定する線分番号
-    def __make_conditional_label_constraint(self, cvar, node, net_id) :
-        lvar_list = self.__node_vars_list[node.id]
-        for i, lvar in enumerate(lvar_list) :
-            if (1 << i) & (net_id + 1) :
-                self.__solver.add_clause([~cvar, lvar])
-            else :
-                self.__solver.add_clause([~cvar, ~lvar])
-
+        if self.__binary_encoding :
+            for i, lvar in enumerate(lvar_list) :
+                if (1 << i) & (net_id + 1) :
+                    tmp_lit = lvar
+                else :
+                    tmp_lit = ~lvar
+                self.__solver.add_clause([tmp_lit])
+        else :
+            for i, lvar in enumerate(lvar_list) :
+                if i == net_id :
+                    tmp_lit = lvar
+                else :
+                    tmp_lit = ~lvar
+                self.__solver.add_clause([tmp_lit])
 
     ## @brief 枝に対する変数番号を返す．
     # @param[in] edge 対象の枝
@@ -871,11 +871,18 @@ def make_conditional_two_hot(solver, uvar, var_list) :
         assert False
 
 
-## @brief 条件付きで２つの変数が等しくなるという制約を作る．
+## @brief 条件付きで２つの変数リストが等しくなるという制約を作る．
 # @param[in] cvar 条件を表す変数
-# @param[in] var1, var2 対象の変数
-def make_conditional_equal(solver, cvar, var1, var2) :
-    solver.add_clause([~cvar, ~var1,  var2])
-    solver.add_clause([~cvar,  var1, ~var2])
+# @param[in] var_list1, var_list2 対象の変数リスト
+def make_conditional_equal(solver, cvar, var_list1, var_list2) :
+    n = len(var_list1)
+    for i in range(0, n) :
+        var1 = var_list1[i]
+        var2 = var_list2[i]
+        solver.add_clause([~cvar, ~var1,  var2])
+        solver.add_clause([~cvar,  var1, ~var2])
+        # cvar が False なら var_list1 と var_list2 は等しくない．
+        #solver.add_clause([ cvar, ~var1, ~var2])
+
 
 # end-of-class NlCnfEncoder
