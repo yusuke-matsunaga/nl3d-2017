@@ -20,10 +20,11 @@ from nl3d.nlsolution import NlSolution
 # それ以外は None
 def solve_nlink(graph, timeout) :
 
-    print('plan_A')
-    status, solution = plan_A(graph, timeout)
-    if status == 'OK' :
-        return status, solution
+    if graph.depth == 1 :
+        print('plan_A')
+        status, solution = plan_A(graph, timeout)
+        if status == 'OK' :
+            return status, solution
 
     print('plan_B11')
     status, solution = plan_B11(graph, timeout)

@@ -418,7 +418,12 @@ class NlCnfEncoder :
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
     def solve(self, timeout) :
+        print('SAT start')
+        print(' # of variables: {}'.format(self.__solver.variable_num()))
+        print(' # of clauses:   {}'.format(self.__solver.clause_num()))
+        print(' # of literals:  {}'.format(self.__solver.literal_num()))
         stat, model = self.__solver.solve()
+        print('    end')
         if stat == Bool3.TRUE :
             route_list = self.__decode_model(model)
             router = NlRouter(self.__graph)
