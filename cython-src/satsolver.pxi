@@ -46,6 +46,117 @@ cdef class Solver :
             c_lits.push_back(from_literal(lit))
         self._this_ptr.add_clause(c_lits)
 
+    ## @brief 2つのリテラルが等しいという制約節を追加する．
+    def add_eq_rel(Solver self, lit1, lit2) :
+        cdef SatLiteral c_lit1 = from_literal(lit1)
+        cdef SatLiteral c_lit2 = from_literal(lit2)
+        self._this_ptr.add_eq_rel(c_lit1, c_lit2)
+
+    ## @brief 2つのリテラルが等しくないという制約節を追加する．
+    def add_neq_rel(Solver self, lit1, lit2) :
+        cdef SatLiteral c_lit1 = from_literal(lit1)
+        cdef SatLiteral c_lit2 = from_literal(lit2)
+        self._this_ptr.add_neq_rel(c_lit1, c_lit2)
+
+    ## @brief ANDゲートの入出力の関係を表す制約節を追加する．
+    def add_andgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_andgate_rel(c_olit, c_ilits)
+
+    ## @brief NANDゲートの入出力の関係を表す制約節を追加する．
+    def add_nandgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_nandgate_rel(c_olit, c_ilits)
+
+    ## @brief ORゲートの入出力の関係を表す制約節を追加する．
+    def add_orgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_orgate_rel(c_olit, c_ilits)
+
+    ## @brief NORゲートの入出力の関係を表す制約節を追加する．
+    def add_norgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_norgate_rel(c_olit, c_ilits)
+
+    ## @brief XORゲートの入出力の関係を表す制約節を追加する．
+    def add_xorgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_xorgate_rel(c_olit, c_ilits)
+
+    ## @brief XNORゲートの入出力の関係を表す制約節を追加する．
+    def add_xnorgate_rel(Solver self, olit, ilit_list) :
+        cdef SatLiteral c_olit = from_literal(olit)
+        cdef vector[SatLiteral] c_ilits
+        for lit in ilit_list :
+            c_ilits.push_back(from_literal(lit))
+        self._this_ptr.add_xnorgate_rel(c_olit, c_ilits)
+
+    ## @brief 高々1つのリテラルしか真にならないという制約節を追加する．
+    def add_at_most_one(Solver self, lit_list) :
+        cdef vector[SatLiteral] c_lits
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_most_one(c_lits)
+
+    ## @brief 高々2つのリテラルしか真にならないという制約節を追加する．
+    def add_at_most_two(Solver self, lit_list) :
+        cdef vector[SatLiteral] c_lits
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_most_two(c_lits)
+
+    ## @brief 高々K個のリテラルしか真にならないという制約節を追加する．
+    def add_at_most_k(Solver self, lit_list, k) :
+        cdef vector[SatLiteral] c_lits
+        cdef int c_k = k
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_most_k(c_lits, c_k)
+
+    ## @brief 1つ以上のリテラルが真になるという制約節を追加する．
+    def add_at_least_one(Solver self, lit_list) :
+        cdef vector[SatLiteral] c_lits
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_least_one(c_lits)
+
+    ## @brief 2つ以上のリテラルが真になるという制約節を追加する．
+    def add_at_least_two(Solver self, lit_list) :
+        cdef vector[SatLiteral] c_lits
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_least_two(c_lits)
+
+    ## @brief K個以上のリテラルが真になるという制約節を追加する．
+    def add_at_least_k(Solver self, lit_list, k) :
+        cdef vector[SatLiteral] c_lits
+        cdef int c_k = k
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_at_least_k(c_lits, c_k)
+
+    ## @brief 真になっているリテラルの数が1でないという制約節を追加する．
+    def add_not_one(Solver self, lit_list) :
+        cdef vector[SatLiteral] c_lits
+        for lit in lit_list :
+            c_lits.push_back(from_literal(lit))
+        self._this_ptr.add_not_one(c_lits)
+
     ## @brief 問題を解く．
     # @return stat, model を返す．
     #
