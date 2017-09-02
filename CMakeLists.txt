@@ -44,13 +44,6 @@ include( FindPythonLibs )
 
 include( UseCython )
 
-if ( WITH_QT5 )
-  set( CMAKE_INCLUDE_CURRENT_DIR ON )
-
-  find_package(Qt5Widgets)
-  find_package(OpenGL)
-endif ()
-
 find_package(Gperftools)
 
 include (YmUtils)
@@ -103,10 +96,6 @@ add_subdirectory ( ym-sat )
 add_subdirectory ( cython-src )
 
 #add_subdirectory ( gtest )
-
-#if ( Qt5Widgets_FOUND AND OPENGL_FOUND )
-#  add_subdirectory ( gui-qt5 )
-#endif ()
 
 if ( DOXYGEN_FOUND )
   add_subdirectory ( doxygen-src )
