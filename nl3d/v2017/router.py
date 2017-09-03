@@ -1,58 +1,15 @@
 #! /usr/bin/env python3
-#
-# @file nlrouter.py
-# @brief
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2017 Yusuke Matsunaga
-# All rights reserved.
 
-from nl3d.nlsolution import NlSolution
+### @file router.py
+### @brief Router の定義ファイル
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2017 Yusuke Matsunaga
+### All rights reserved.
 
-class Dimension :
-
-    def __init__(self, width, height, depth) :
-        self.__width = width
-        self.__height = height
-        self.__depth = depth
-
-    @property
-    def width(self) :
-        return self.__width
-
-    @property
-    def height(self) :
-        return self.__height
-
-    @property
-    def depth(self) :
-        return self.__depth
-
-    @property
-    def grid_size(self) :
-        return self.__width * self.__height * self.__depth
-
-    def point_to_index(self, x, y, z) :
-        assert self.range_check(x, y, z)
-        return ((z * self.__height) + y) * self.__width + x
-
-    def index_to_point(self, index) :
-        x = index % self.__width
-        index //= self.__width
-        y = index % self.__height
-        index //= self.__height
-        z = index
-        return x, y, z
-
-    def range_check(self, x, y, z) :
-        if x < 0 or x >= self.__width :
-            return False
-        if y < 0 or y >= self.__height :
-            return False
-        if z < 0 or z >= self.__depth :
-            return False
-        return True
-
+from nl3d.v2017.point import Point
+from nl3d.v2017.solution import Solution
+from nl3d.v2017.dimension import Dimension
 
 class Cell :
 
@@ -124,9 +81,9 @@ class RouteInfo :
         return t_bend
 
 def check_bend(point1, point2, point3) :
-    x1, y1, z1 = point1
-    x2, y2, z2 = point2
-    x3, y3, z3 = point3
+    x1, y1, z1 = point1.xyz
+    x2, y2, z2 = point2.xyz
+    x3, y3, z3 = point3.xyz
 
     x_diff = False
     y_diff = False
@@ -148,39 +105,37 @@ def check_bend(point1, point2, point3) :
     return False
 
 
-class NlRouter :
+class Router :
 
     ## @brief 初期化
-    def __init__(self, graph) :
+    def __init__(self, graph, verbose) :
         self.__graph = graph
+        self.__verbose = verbose
 
-        w = graph.width
-        h = graph.height
-        d = graph.depth
-        dimension = Dimension(w, h, d)
+        dimension = graph.dimension
         self.__dimension = dimension
-        self.__grid_num = self.__dimension.grid_size
+        self.__grid_num = dimension.grid_size
         self.__net_num = graph.net_num
 
         self.__cell_array = [Cell(index, dimension) for index in range(0, self.__grid_num)]
 
-        for z in range(0, d) :
-            for x in range(0, w) :
-                for y in range(0, h) :
-                    cell = self.__cell(x, y, z)
-
-                    if x > 0 :
-                        cell.set_adj_cell(0, self.__cell(x - 1, y, z))
-                    if x < w - 1 :
-                        cell.set_adj_cell(1, self.__cell(x + 1, y, z))
-                    if y > 0 :
-                        cell.set_adj_cell(2, self.__cell(x, y - 1, z))
-                    if y < h - 1 :
-                        cell.set_adj_cell(3, self.__cell(x, y + 1, z))
-                    if z > 0 :
-                        cell.set_adj_cell(4, self.__cell(x, y, z - 1))
-                    if z < d - 1 :
-                        cell.set_adj_cell(5, self.__cell(x, y, z + 1))
+        w = dimension.width
+        h = dimension.height
+        d = dimension.depth
+        for cell in self.__cell_array :
+            x, y, z = cell.point.xyz
+            if x > 0 :
+                cell.set_adj_cell(0, self.__cell(Point(x - 1, y, z)))
+            if x < w - 1 :
+                cell.set_adj_cell(1, self.__cell(Point(x + 1, y, z)))
+            if y > 0 :
+                cell.set_adj_cell(2, self.__cell(Point(x, y - 1, z)))
+            if y < h - 1 :
+                cell.set_adj_cell(3, self.__cell(Point(x, y + 1, z)))
+            if z > 0 :
+                cell.set_adj_cell(4, self.__cell(Point(x, y, z - 1)))
+            if z < d - 1 :
+                cell.set_adj_cell(5, self.__cell(Point(x, y, z + 1)))
 
         self.__route_info_array = None
 
@@ -189,15 +144,15 @@ class NlRouter :
         self.__route_info_array = [RouteInfo(route_list[i]) for i in range(0, self.__net_num)]
 
     ## @brief 連結性を壊さずに線を引き直す．
-    def reroute(self, verbose) :
-        if verbose :
+    def reroute(self) :
+        if self.__verbose :
             print('rerouting')
 
         t_length, t_bend = self.count()
         t_length0, t_bend0 = t_length, t_bend
 
         while True :
-            if verbose :
+            if self.__verbose :
                 print('  Total length = {:7d}'.format(t_length))
                 print('  Total bends  = {:7d}'.format(t_bend))
 
@@ -208,18 +163,18 @@ class NlRouter :
             if t_length >= t_length0 and t_bend >= t_bend0 :
                 break
 
-    ## @brief 配線結果を NlSolution に変換する．
+    ## @brief 配線結果を Solution に変換する．
     def to_solution(self) :
-        solution = NlSolution()
-        solution.set_size(self.__graph.width, self.__graph.height, self.__graph.depth)
+        solution = Solution()
+        solution.set_size(self.__dimension)
         for net_id in range(0, self.__net_num) :
             route_info = self.__route_info_array[net_id]
-            x, y, z = route_info._start_point
-            solution.set_val(x, y, z, net_id + 1)
-            for x, y, z in route_info._points :
-                solution.set_val(x, y, z, net_id + 1)
-            x, y, z = route_info._end_point
-            solution.set_val(x, y, z, net_id + 1)
+            point = route_info._start_point
+            solution.set_val(point, net_id + 1)
+            for point in route_info._points :
+                solution.set_val(point, net_id + 1)
+            point = route_info._end_point
+            solution.set_val(point, net_id + 1)
         return solution
 
     def count(self) :
@@ -239,20 +194,19 @@ class NlRouter :
             if i == net_id :
                 continue
             route_info = self.__route_info_array[i]
-            x, y, z = route_info._start_point
-            self.__cell(x, y, z).__label = -1
-            x, y, z = route_info._end_point
-            self.__cell(x, y, z).__label = -1
-            for x, y, z in route_info._points :
-                cell = self.__cell(x, y, z)
-                cell.__label = -1
+            point = route_info._start_point
+            self.__cell(point).__label = -1
+            point = route_info._end_point
+            self.__cell(point).__label = -1
+            for point in route_info._points :
+                self.__cell(point).__label = -1
 
         # net_id の配線経路を最短・最小曲がりで引き直す．
         route_info = self.__route_info_array[net_id]
-        x, y, z = route_info._start_point
-        start_cell = self.__cell(x, y, z)
-        x, y, z = route_info._end_point
-        end_cell = self.__cell(x, y, z)
+        point = route_info._start_point
+        start_cell = self.__cell(point)
+        point = route_info._end_point
+        end_cell = self.__cell(point)
         route_info._points = []
         self.__reroute_sub(start_cell, end_cell, route_info)
 
@@ -341,7 +295,6 @@ class NlRouter :
             route_info._points.append(cell.point)
             min_edge = min_edge._next
 
-
-    def __cell(self, x, y, z) :
-        index = self.__dimension.point_to_index(x, y, z)
+    def __cell(self, point) :
+        index = self.__dimension.point_to_index(point)
         return self.__cell_array[index]

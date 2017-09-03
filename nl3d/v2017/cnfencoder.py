@@ -1,24 +1,24 @@
 #! /usr/bin/env python3
 
-## @file nlcnfencoder.py
-# @brief NlCnfEncoder の定義ファイル
+## @file cnfencoder.py
+# @brief CnfEncoder の定義ファイル
 # @author Yusuke Matsunaga (松永 裕介)
 #
 # Copyright (C) 2017 Yusuke Matsunaga
 # All rights reserved.
 
 import math
-from nl3d.nlgraph import NlNode, NlEdge, NlGraph
-from nl3d.nlrouter import NlRouter
-from nl3d.nlsolution import NlSolution
-#from nl3d.pym_sat import Solver, VarId, Literal, Bool3
+from nl3d.v2017.point import Point
+from nl3d.v2017.graph import Graph
+from nl3d.v2017.router import Router
+from nl3d.v2017.solution import Solution
 from pym_sat import Solver, VarId, Literal, Bool3
 
 
 ## @brief 問題を表すCNF式を生成するクラス
 #
-# 内部に NlGraph の要素に対する変数の割り当て情報を持つ．
-class NlCnfEncoder :
+# 内部に Graph の要素に対する変数の割り当て情報を持つ．
+class CnfEncoder :
 
     ## @brief 初期化
     # @param[in] graph 問題を表すグラフ
@@ -202,89 +202,6 @@ class NlCnfEncoder :
                 cvar1 = self.__edge_var(z1_edge)
                 solver.add_clause([ cvar1, ~var1, ~var2, ~var3, ~var4])
 
-
-    ## @brief 2x4マスのコの字経路を禁止する制約を作る．
-    #
-    # node_00 -- edge_h1 -- node_10 -- edge_h2 -- node_20 -- edge_h3 -- node_30
-    #    |                     |                     |                     |
-    #    |                     |                     |                     |
-    # edge_v1               edge_??               edge_??               edge_v2
-    #    |                     |                     |                     |
-    #    |                     |                     |                     |
-    # node_01 -- edge_h4 -- node_11 -- edge_h5 -- node_21 -- edge_h6 -- node_31
-    #
-    # 1: node_11, node_21 が終端かビアでない限り，
-    #    edge_v1, edge_h1, edge_h2, edge_h3, edge_v2 という経路は使えない．
-    # 2: node_10, node_20 が終端かビアでない限り，
-    #    edge_v1, edge_h4, edge_h5, edge_h6, edge_v2 という経路は使えない．
-    #
-    # これを3方向に対して行う．
-    def make_w2shape_constraint(self) :
-        graph = self.__graph
-        for node in graph.node_list :
-            self.__w2shape_sub(node, 1, 3)
-            self.__w2shape_sub(node, 3, 1)
-            self.__w2shape_sub(node, 1, 5)
-            self.__w2shape_sub(node, 5, 1)
-            self.__w2shape_sub(node, 3, 5)
-            self.__w2shape_sub(node, 5, 3)
-
-    ## @brief make_w2shape_constraint() の下請け関数
-    def __w2shape_sub(self, node_00, dir1, dir2) :
-        edge_h1 = node_00.edge(dir1)
-        if edge_h1 == None :
-            return
-        node_10 = edge_h1.alt_node(node_00)
-        if node_10.is_terminal :
-            return
-
-        edge_h2 = node_10.edge(dir1)
-        if edge_h2 == None :
-            return
-        node_20 = edge_h2.alt_node(node_10)
-        if node_20.is_terminal :
-            return
-
-        edge_h3 = node_20.edge(dir1)
-        if edge_h3 == None :
-            return
-        node_30 = edge_h3.alt_node(node_20)
-
-        edge_v1 = node_00.edge(dir2)
-        if edge_v1 == None :
-            return
-        node_01 = edge_v1.alt_node(node_00)
-
-        edge_v2 = node_30.edge(dir2)
-
-        edge_h4 = node_01.edge(dir1)
-        node_11 = edge_h4.alt_node(node_01)
-        if node_11.is_terminal :
-            return
-
-        edge_h5 = node_11.edge(dir1)
-        node_21 = edge_h5.alt_node(node_11)
-        if node_21.is_terminal :
-            return
-
-        edge_h6 = node_21.edge(dir1)
-
-        node_31 = edge_h6.alt_node(node_21)
-
-        solver = self.__solver
-        var_v1 = self.__edge_var(edge_v1)
-        var_v2 = self.__edge_var(edge_v2)
-        if not (node_00.is_terminal or node_30.is_terminal) :
-            var_h1 = self.__edge_var(edge_h1)
-            var_h2 = self.__edge_var(edge_h2)
-            var_h3 = self.__edge_var(edge_h3)
-            solver.add_clause([~var_v1, ~var_v2, ~var_h1, ~var_h2, ~var_h3])
-        if not (node_01.is_terminal or node_31.is_terminal) :
-            var_h4 = self.__edge_var(edge_h4)
-            var_h5 = self.__edge_var(edge_h5)
-            var_h6 = self.__edge_var(edge_h6)
-            solver.add_clause([~var_v1, ~var_v2, ~var_h4, ~var_h5, ~var_h6])
-
     ## @brief L字型制約を作る．
     ##
     ## node_00 -- edge1 -- node_10
@@ -417,18 +334,22 @@ class NlCnfEncoder :
     ##
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
-    def solve(self, timeout) :
+    def solve(self, var_limit) :
         print('SAT start')
         print(' # of variables: {}'.format(self.__solver.variable_num()))
         print(' # of clauses:   {}'.format(self.__solver.clause_num()))
         print(' # of literals:  {}'.format(self.__solver.literal_num()))
+        if var_limit > 0 and self.__solver.variable_num() > var_limit :
+            print('  variable limit ({}) exceeded'.format(var_limit))
+            return 'Abort', None
         stat, model = self.__solver.solve()
         print('    end')
         if stat == Bool3.TRUE :
             route_list = self.__decode_model(model)
-            router = NlRouter(self.__graph)
+            verbose = False
+            router = Router(self.__graph, verbose)
             router.set_routes(route_list)
-            router.reroute(True)
+            router.reroute()
             solution = router.to_solution()
             return 'OK', solution
         elif stat == Bool3.FALSE :
@@ -450,7 +371,7 @@ class NlCnfEncoder :
         node = start
         route = []
         while True :
-            route.append( (node.x, node.y, node.z) )
+            route.append(Point(node.x, node.y, node.z))
             if node == end :
                 break
 
@@ -536,7 +457,8 @@ class NlCnfEncoder :
             # node が終端の場合
 
             # ただ一つの枝が選ばれる．
-            make_one_hot(solver, evar_list)
+            solver.add_at_most_one(evar_list)
+            solver.add_at_least_one(evar_list)
 
             # 同時にラベルの変数を固定する．
             self.__make_label_constraint(node, node.terminal_id)
@@ -549,6 +471,7 @@ class NlCnfEncoder :
                 # uvar が True の時は2つの枝が選ばれる．
                 # そうでなければ選ばれない．
                 uvar = self.__uvar_list[node.id]
+                solver.add_at_most_two(evar_list)
                 make_conditional_two_hot(solver, uvar, evar_list)
 
 
@@ -618,46 +541,6 @@ def lshape_ycheck(graph, x0, y0, z0, dy, ry) :
     return False, 0
 
 
-## @brief リストの中の変数が1つだけ True となる制約を作る．
-# @param[in] var_list 対象の変数のリスト
-def make_one_hot(solver, var_list) :
-    n = len(var_list)
-    # 要素数で場合分け
-    if n == 2 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        solver.add_clause([~var0, ~var1])
-        solver.add_clause([ var0,  var1])
-    elif n == 3 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        solver.add_clause([~var0, ~var1       ])
-        solver.add_clause([~var0,        ~var2])
-        solver.add_clause([       ~var1, ~var2])
-        solver.add_clause([ var0,  var1,  var2])
-    elif n == 4 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        solver.add_clause([~var0, ~var1              ])
-        solver.add_clause([~var0,        ~var2       ])
-        solver.add_clause([~var0,               ~var3])
-        solver.add_clause([       ~var1, ~var2       ])
-        solver.add_clause([       ~var1,        ~var3])
-        solver.add_clause([              ~var2, ~var3])
-        solver.add_clause([ var0,  var1,  var2,  var3])
-    else :
-        # 一般形
-        for i in range(0, n - 1) :
-            var0 = var_list[i]
-            for j in range(i + 1, n) :
-                var1 = var_list[j]
-                solver.add_clause([~var0, ~var1])
-        solver.add_clause(var_list)
-
-
 ## @brief uvar が True ならリストの中の変数が2個 True になるという制約
 # @param[in] var_list 対象の変数のリスト
 def make_conditional_two_hot(solver, uvar, var_list) :
@@ -679,8 +562,6 @@ def make_conditional_two_hot(solver, uvar, var_list) :
         var0 = var_list[0]
         var1 = var_list[1]
         var2 = var_list[2]
-        # 3つの枝が同時に選ばれることはない．
-        solver.add_clause([~var0, ~var1, ~var2])
         # uvar が True なら2つ以上の枝が選ばれる．
         solver.add_clause([~uvar,  var0,  var1       ])
         solver.add_clause([~uvar,  var0,         var2])
@@ -694,11 +575,6 @@ def make_conditional_two_hot(solver, uvar, var_list) :
         var1 = var_list[1]
         var2 = var_list[2]
         var3 = var_list[3]
-        # 3つ以上の枝が同時に選ばれることはない．
-        solver.add_clause([~var0, ~var1, ~var2       ])
-        solver.add_clause([~var0, ~var1,        ~var3])
-        solver.add_clause([~var0,        ~var2, ~var3])
-        solver.add_clause([       ~var1, ~var2, ~var3])
         # uvar が True なら2つ以上の枝が選ばれる．
         solver.add_clause([~uvar,  var0,  var1,  var2       ])
         solver.add_clause([~uvar,  var0,  var1,         var3])
@@ -715,17 +591,6 @@ def make_conditional_two_hot(solver, uvar, var_list) :
         var2 = var_list[2]
         var3 = var_list[3]
         var4 = var_list[4]
-        # 3つ以上の枝が同時に選ばれることはない．
-        solver.add_clause([~var0, ~var1, ~var2              ])
-        solver.add_clause([~var0, ~var1,        ~var3       ])
-        solver.add_clause([~var0, ~var1,               ~var4])
-        solver.add_clause([~var0,        ~var2, ~var3       ])
-        solver.add_clause([~var0,        ~var2,        ~var4])
-        solver.add_clause([~var0,               ~var3, ~var4])
-        solver.add_clause([       ~var1, ~var2, ~var3       ])
-        solver.add_clause([       ~var1, ~var2,        ~var4])
-        solver.add_clause([       ~var1,        ~var3, ~var4])
-        solver.add_clause([              ~var2, ~var3, ~var4])
         # uvar が True なら2つ以上の枝が選ばれる．
         solver.add_clause([~uvar,  var0,  var1,  var2,  var3       ])
         solver.add_clause([~uvar,  var0,  var1,  var2,         var4])
@@ -745,27 +610,6 @@ def make_conditional_two_hot(solver, uvar, var_list) :
         var3 = var_list[3]
         var4 = var_list[4]
         var5 = var_list[5]
-        # 3つ以上の枝が同時に選ばれることはない．
-        solver.add_clause([~var0, ~var1, ~var2                     ])
-        solver.add_clause([~var0, ~var1,        ~var3              ])
-        solver.add_clause([~var0, ~var1,               ~var4       ])
-        solver.add_clause([~var0, ~var1,                      ~var5])
-        solver.add_clause([~var0,        ~var2, ~var3              ])
-        solver.add_clause([~var0,        ~var2,        ~var4       ])
-        solver.add_clause([~var0,        ~var2,               ~var5])
-        solver.add_clause([~var0,               ~var3, ~var4       ])
-        solver.add_clause([~var0,               ~var3,        ~var5])
-        solver.add_clause([~var0,                      ~var4, ~var5])
-        solver.add_clause([       ~var1, ~var2, ~var3              ])
-        solver.add_clause([       ~var1, ~var2,        ~var4       ])
-        solver.add_clause([       ~var1, ~var2,               ~var5])
-        solver.add_clause([       ~var1,        ~var3, ~var4       ])
-        solver.add_clause([       ~var1,        ~var3,        ~var5])
-        solver.add_clause([       ~var1,               ~var4, ~var5])
-        solver.add_clause([              ~var2, ~var3, ~var4       ])
-        solver.add_clause([              ~var2, ~var3,        ~var5])
-        solver.add_clause([              ~var2,        ~var4, ~var5])
-        solver.add_clause([                     ~var3, ~var4, ~var5])
         # uvar が True なら2つ以上の枝が選ばれる．
         solver.add_clause([~uvar,  var0,  var1,  var2,  var3,  var4       ])
         solver.add_clause([~uvar,  var0,  var1,  var2,  var3,         var5])
@@ -798,4 +642,4 @@ def make_conditional_equal(solver, cvar, var_list1, var_list2) :
         #solver.add_clause([ cvar, ~var1, ~var2])
 
 
-# end-of-class NlCnfEncoder
+# end-of-class CnfEncoder

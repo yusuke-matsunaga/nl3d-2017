@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
-#
-# @file test.py
-# @brief
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2017 Yusuke Matsunaga
-# All rights reserved.
+
+### @file nlink.py
+### @brief ナンバーリンクソルバのメインプログラム
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2017 Yusuke Matsunaga
+### All rights reserved.
 
 import sys
 import os
@@ -13,7 +13,7 @@ import argparse
 
 sys.path.append('./')
 
-import nl3d
+import nl3d.v2017
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-o', '--output', type = str,
@@ -38,13 +38,13 @@ else :
 
 binary_encoding = args.binary_encoding
 
-reader = nl3d.ADC2017_Reader()
+reader = nl3d.v2017.ADC2017_Reader()
 
 with open(ifile, 'r') as fin :
     problem = reader.read_problem(fin)
-    graph = nl3d.NlGraph(problem)
+    graph = nl3d.v2017.Graph(problem)
 
-    status, solution = nl3d.solve_nlink(graph, var_limit, binary_encoding)
+    status, solution = nl3d.v2017.solve_nlink(graph, var_limit, binary_encoding)
 
     print(status)
     if status == 'OK' :
