@@ -25,11 +25,11 @@ class NlCnfEncoder :
     # @param[in] solver SATソルバの型を表す文字列
     #
     # ここではSATの変数の割当のみ行う．
-    def __init__(self, graph, solver_type) :
+    def __init__(self, graph, solver_type, binary_encoding) :
         solver = Solver(solver_type)
         self.__graph = graph
         self.__solver = solver
-        self.__binary_encoding = False
+        self.__binary_encoding = binary_encoding
 
         # 枝に対応する変数を作る．
         # 結果は edge_var_list に格納する．
@@ -543,7 +543,8 @@ class NlCnfEncoder :
         else :
             if no_slack :
                 # 常に２個の枝が選ばれる．
-                make_two_hot(solver, evar_list)
+                solver.add_at_most_two(evar_list)
+                solver.add_at_least_two(evar_list)
             else :
                 # uvar が True の時は2つの枝が選ばれる．
                 # そうでなければ選ばれない．
@@ -655,99 +656,6 @@ def make_one_hot(solver, var_list) :
                 var1 = var_list[j]
                 solver.add_clause([~var0, ~var1])
         solver.add_clause(var_list)
-
-## @brief リストの中の変数が2個 True になるという制約
-# @param[in] var_list 対象の変数のリスト
-def make_two_hot(solver, var_list) :
-    n = len(var_list)
-    # 要素数で場合分け
-    # 基本的には
-    # - 3つ以上の変数が同時に True にならない．
-    # - n - 1 個以上の変数が同時に False にならない．
-    # という条件を組み合わせる．
-    if n == 2 :
-        # いつも選ばれる．
-        var0 = var_list[0]
-        var1 = var_list[1]
-        solver.add_clause([var0])
-        solver.add_clause([var1])
-    elif n == 3 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        solver.add_clause([~var0, ~var1, ~var2])
-        solver.add_clause([ var0,  var1       ])
-        solver.add_clause([ var0,         var2])
-        solver.add_clause([        var1,  var2])
-    elif n == 4 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        solver.add_clause([~var0, ~var1, ~var2       ])
-        solver.add_clause([~var0, ~var1,        ~var3])
-        solver.add_clause([~var0,        ~var2, ~var3])
-        solver.add_clause([       ~var1, ~var2, ~var3])
-        solver.add_clause([ var0,  var1,  var2       ])
-        solver.add_clause([ var0,  var1,         var3])
-        solver.add_clause([ var0,         var2,  var3])
-        solver.add_clause([        var1,  var2,  var3])
-    elif n == 5 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        var4 = var_list[4]
-        solver.add_clause([~var0, ~var1, ~var2              ])
-        solver.add_clause([~var0, ~var1,        ~var3       ])
-        solver.add_clause([~var0, ~var1,               ~var4])
-        solver.add_clause([~var0,        ~var2, ~var3       ])
-        solver.add_clause([~var0,        ~var2,        ~var4])
-        solver.add_clause([~var0,               ~var3, ~var4])
-        solver.add_clause([       ~var1, ~var2, ~var3       ])
-        solver.add_clause([       ~var1, ~var2,        ~var4])
-        solver.add_clause([       ~var1,        ~var3, ~var4])
-        solver.add_clause([              ~var2, ~var3, ~var4])
-        solver.add_clause([ var0,  var1,  var2,  var3       ])
-        solver.add_clause([ var0,  var1,  var2,         var4])
-        solver.add_clause([ var0,  var1,         var3,  var4])
-        solver.add_clause([ var0,         var2,  var3,  var4])
-        solver.add_clause([        var1,  var2,  var3,  var4])
-    elif n == 6 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        var4 = var_list[4]
-        var5 = var_list[5]
-        solver.add_clause([~var0, ~var1, ~var2                     ])
-        solver.add_clause([~var0, ~var1,        ~var3              ])
-        solver.add_clause([~var0, ~var1,               ~var4       ])
-        solver.add_clause([~var0, ~var1,                      ~var5])
-        solver.add_clause([~var0,        ~var2, ~var3              ])
-        solver.add_clause([~var0,        ~var2,        ~var4       ])
-        solver.add_clause([~var0,        ~var2,               ~var5])
-        solver.add_clause([~var0,               ~var3, ~var4       ])
-        solver.add_clause([~var0,               ~var3,        ~var5])
-        solver.add_clause([~var0,                      ~var4, ~var5])
-        solver.add_clause([       ~var1, ~var2, ~var3              ])
-        solver.add_clause([       ~var1, ~var2,        ~var4       ])
-        solver.add_clause([       ~var1, ~var2,               ~var5])
-        solver.add_clause([       ~var1,        ~var3, ~var4       ])
-        solver.add_clause([       ~var1,        ~var3,        ~var5])
-        solver.add_clause([       ~var1,               ~var4, ~var5])
-        solver.add_clause([              ~var2, ~var3, ~var4       ])
-        solver.add_clause([              ~var2, ~var3,        ~var5])
-        solver.add_clause([              ~var2,        ~var4, ~var5])
-        solver.add_clause([                     ~var3, ~var4, ~var5])
-        solver.add_clause([ var0,  var1,  var2,  var3,  var4       ])
-        solver.add_clause([ var0,  var1,  var2,  var3,         var5])
-        solver.add_clause([ var0,  var1,  var2,         var4,  var5])
-        solver.add_clause([ var0,  var1,         var3,  var4,  var5])
-        solver.add_clause([ var0,         var2,  var3,  var4,  var5])
-        solver.add_clause([        var1,  var2,  var3,  var4,  var5])
-    else :
-        assert False
 
 
 ## @brief uvar が True ならリストの中の変数が2個 True になるという制約
