@@ -9,7 +9,7 @@
 
 from nl3d.v2017.graph import Graph
 from nl3d.v2017.cnfencoder import CnfEncoder
-from nl3d.v2017.solution import Solution
+from nl3d.solution import Solution
 
 ## @brief 問題を表すCNF式を生成する．
 # @param[in] graph 問題を表すグラフ(Graph)

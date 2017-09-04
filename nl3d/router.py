@@ -7,9 +7,9 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
-from nl3d.v2017.point import Point
-from nl3d.v2017.solution import Solution
-from nl3d.v2017.dimension import Dimension
+from nl3d.point import Point
+from nl3d.solution import Solution
+from nl3d.dimension import Dimension
 
 class Cell :
 
@@ -125,17 +125,17 @@ class Router :
         for cell in self.__cell_array :
             x, y, z = cell.point.xyz
             if x > 0 :
-                cell.set_adj_cell(0, self.__cell(Point(x - 1, y, z)))
+                cell.set_adj_cell(0, self.__cell(Point(x - 1, y    , z    )))
             if x < w - 1 :
-                cell.set_adj_cell(1, self.__cell(Point(x + 1, y, z)))
+                cell.set_adj_cell(1, self.__cell(Point(x + 1, y    , z    )))
             if y > 0 :
-                cell.set_adj_cell(2, self.__cell(Point(x, y - 1, z)))
+                cell.set_adj_cell(2, self.__cell(Point(x    , y - 1, z    )))
             if y < h - 1 :
-                cell.set_adj_cell(3, self.__cell(Point(x, y + 1, z)))
+                cell.set_adj_cell(3, self.__cell(Point(x    , y + 1, z    )))
             if z > 0 :
-                cell.set_adj_cell(4, self.__cell(Point(x, y, z - 1)))
+                cell.set_adj_cell(4, self.__cell(Point(x    , y    , z - 1)))
             if z < d - 1 :
-                cell.set_adj_cell(5, self.__cell(Point(x, y, z + 1)))
+                cell.set_adj_cell(5, self.__cell(Point(x    , y    , z + 1)))
 
         self.__route_info_array = None
 

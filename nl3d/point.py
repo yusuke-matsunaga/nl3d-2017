@@ -7,6 +7,7 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
+
 ### @brief 座標を表すクラス
 ###
 ### 単純に (x, y, z) の３次元の座標を持つ．

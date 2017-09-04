@@ -7,7 +7,8 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
-from nl3d.v2017 import Point
+from nl3d.point import Point
+
 
 ### @brief 問題のサイズを表すクラス
 ###

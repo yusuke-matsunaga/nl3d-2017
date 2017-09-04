@@ -7,8 +7,6 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
-from nl3d.v2017.point import Point
-from nl3d.v2017.dimension import Dimension
 
 ### @brief 問題を表すクラス
 ###
@@ -17,16 +15,19 @@ from nl3d.v2017.dimension import Dimension
 ### - 高さ
 ### - 層数
 ### - ネットの端点のリスト
+### - ビアのリスト
+###
+### ちなみにビア情報を持つのは ADC2016 フォーマットのみ<br>
 ###
 ### 値を設定する時はまず set_size(w, h, d) でサイズを設定し，
-### そのあとで add_net(label, start, end) でネットを追加する．
+### そのあとでネットは add_net(label, start, end) で追加する．
+### ビアは add_via(label, x, y, z1, z2) で追加する．
 ### 設定された内容は clear() を呼ぶまで変わらない．
 ###
 ### ネットは net_list() で取得できる．これは反復子になっているので
 ###
 ### @code
-### for net_id, label, start_point, end_point in problem.net_list() :
-###   # net_id にネット番号(int)
+### for label, start_point, end_point in problem.net_list() :
 ###   # label にラベル(int というか任意)
 ###   # start_point に始点の座標(Point)
 ###   # end_point に終点の座標(Point)
@@ -37,6 +38,27 @@ from nl3d.v2017.dimension import Dimension
 ### という風に使うことを想定している．<br>
 ### ネット番号はリスト中のインデックス．<br>
 ### ちなみにネットの始点と終点の順番に意味はない．<br>
+###
+### 同様にビアは via_list() で取得できる．
+###
+### @code
+### for via in problem.via_list() :
+###   # via は Via のオブジェクトとなっている．
+###   ...
+### @endcode
+###
+### という風に使うことを想定している．<br>
+### ビア番号はリスト中のインデックス<br>
+### これはビアのラベルとは無関係<br>
+### ビアはラベルをキーにして取得することもできる．
+###
+### @code
+### if problem.has_via(label) :
+###     via = problem.via(label)
+###     ...
+### @endcode
+###
+### という風に使う．
 class Problem :
 
     ### @brief 初期化
@@ -50,6 +72,8 @@ class Problem :
         self.__dim = None
         self.__net_list = []
         self.__net_dict = {}
+        self.__via_list = []
+        self.__via_dict = {}
 
     ### @brief サイズを設定する．
     ### @param[in] dim サイズ
@@ -73,6 +97,27 @@ class Problem :
 
         self.__net_list.append( (label, start_point, end_point) )
         self.__net_dict[label] = (start_point, end_point)
+
+    ### @brief ビアを追加する．
+    ### @param[in] label ラベル
+    ### @param[in] x X座標
+    ### @param[in] y Y座標
+    ### @param[in] z1 Z座標(層番号)の下限
+    ### @param[in] z2 Z座標(層番号)の上限
+    ###
+    ### z1 < z2 を仮定している．
+    def add_via(self, label, x, y, z1, z2) :
+        assert z1 < z2
+
+        if label in self.__via_dict :
+            # すでに label というラベルのビアがあった．
+            # スキップするだけ．
+            print('Error: Via#{} already exists.'.format(label))
+            return
+
+        via = Via(label, x, y, z1, z2)
+        self.__via_list.append(via)
+        self.__via_dict[label] = via
 
     ### @brief サイズ(Dimension)
     @property
@@ -123,6 +168,34 @@ class Problem :
         else :
             return None
 
+    ### @brief ビア数を返す．
+    @property
+    def via_num(self) :
+        return len(self.__via_list)
+
+    ### @brief ビアを返す．
+    ###
+    ### これは for 文で使われることを想定している．
+    def via_list(self) :
+        for via in self.__via_list :
+            yield via
+
+    ### @brief label というラベルを持つビアがあるか調べる．
+    ### @param[in] label 検索対象のラベル
+    ### @retval True label というラベルのビアがあった．
+    def has_via(self, label) :
+        return label in self.__via_dict
+
+    ### @brief label というラベルを持つビアを返す．
+    ### @param[in] label 検索対象のラベル
+    ###
+    ### なければ None を返す．
+    def via(self, label) :
+        if label in self.__via_dict :
+            return __via_dict[label]
+        else :
+            return None
+
     ### @brief 内容を書き出す．
     ###
     ### 主にデバッグ用
@@ -133,5 +206,8 @@ class Problem :
 
         for net_id, (label, start_point, end_point) in enumerate(self.net_list()) :
             print('[{:3d}] Net#{}: {} - {}'.format(net_id, label, start_point, end_point))
+
+        for via_id, via in enumerate(self.via_list()) :
+            print('[{:3d}] {}'.format(via_id, via))
 
 # end of problem.py

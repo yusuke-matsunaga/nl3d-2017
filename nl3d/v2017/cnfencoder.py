@@ -1,35 +1,37 @@
 #! /usr/bin/env python3
 
-## @file cnfencoder.py
-# @brief CnfEncoder の定義ファイル
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2017 Yusuke Matsunaga
-# All rights reserved.
+### @file v2017/cnfencoder.py
+### @brief CnfEncoder の定義ファイル
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2017 Yusuke Matsunaga
+### All rights reserved.
 
 import math
-from nl3d.v2017.point import Point
+from nl3d.point import Point
 from nl3d.v2017.graph import Graph
 from nl3d.v2017.router import Router
-from nl3d.v2017.solution import Solution
+from nl3d.solution import Solution
 from pym_sat import Solver, VarId, Literal, Bool3
 
 
-## @brief 問題を表すCNF式を生成するクラス
-#
-# 内部に Graph の要素に対する変数の割り当て情報を持つ．
+### @brief 問題を表すCNF式を生成するクラス
+###
+### 内部に Graph の要素に対する変数の割り当て情報を持つ．
 class CnfEncoder :
 
-    ## @brief 初期化
-    # @param[in] graph 問題を表すグラフ
-    # @param[in] solver SATソルバの型を表す文字列
-    #
-    # ここではSATの変数の割当のみ行う．
+    ### @brief 初期化
+    ### @param[in] graph 問題を表すグラフ
+    ### @param[in] solver_type SATソルバの型を表す文字列
+    ### @param[in] binary_encoding ノードラベル変数を２進符号化する時 True にするフラグ
+    ###
+    ### ここではSATの変数の割当のみ行う．
     def __init__(self, graph, solver_type, binary_encoding) :
         solver = Solver(solver_type)
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
+        nn = graph.net_num
 
         # 枝に対応する変数を作る．
         # 結果は edge_var_list に格納する．
@@ -42,8 +44,6 @@ class CnfEncoder :
         # 結果は __node_vars_list に格納する．
         # __node_vars_list[node.id] に node に対応する変数のリストが入る．
         # 実際にはその変数に対応するリテラルを入れる．
-        nn = graph.net_num
-
         if self.__binary_encoding :
             nn_log2 = math.ceil(math.log2(nn + 1))
             self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn_log2)] \
@@ -52,8 +52,8 @@ class CnfEncoder :
             self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn)] \
                                      for node in graph.node_list]
 
-    ## @brief 基本的な制約を作る．
-    # @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
+    ### @brief 基本的な制約を作る．
+    ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
     def make_base_constraint(self, no_slack) :
         solver = self.__solver
         graph = self.__graph
@@ -72,20 +72,20 @@ class CnfEncoder :
 
         self.make_ushape_constraint()
 
-    ## @brief U字(コの字)制約を作る．
-    #
-    # node_00 -- edge1 -- node_10
-    #    |                   |
-    #    |                   |
-    #  edge2               edge3
-    #    |                   |
-    #    |                   |
-    # node_01 -- edge4 -- node_11
-    #
-    # edge1, edge2, edge3, edge4 の３つ以上が同時に使われる
-    # 経路は存在しない．
-    #
-    # これを3方向で行う．
+    ### @brief U字(コの字)制約を作る．
+    ###
+    ### node_00 -- edge1 -- node_10
+    ###    |                   |
+    ###    |                   |
+    ###  edge2               edge3
+    ###    |                   |
+    ###    |                   |
+    ### node_01 -- edge4 -- node_11
+    ###
+    ### edge1, edge2, edge3, edge4 の３つ以上が同時に使われる
+    ### 経路は存在しない．
+    ###
+    ### これを3方向で行う．
     def make_ushape_constraint(self) :
         graph = self.__graph
         # 変数名は上の図に対応している．
@@ -94,7 +94,7 @@ class CnfEncoder :
             self.__ushape_sub(node, 1, 5)
             self.__ushape_sub(node, 3, 5)
 
-    ## @brief make_ushape_constraint() の下請け関数
+    ### @brief make_ushape_constraint() の下請け関数
     def __ushape_sub(self, node_00, dir1, dir2) :
         edge1 = node_00.edge(dir1)
         edge2 = node_00.edge(dir2)
@@ -121,11 +121,7 @@ class CnfEncoder :
         var2 = self.__edge_var(edge2)
         var3 = self.__edge_var(edge3)
         var4 = self.__edge_var(edge4)
-        solver.add_clause([~var1, ~var2, ~var3       ])
-        solver.add_clause([~var1, ~var2,        ~var4])
-        solver.add_clause([~var1,        ~var3, ~var4])
-        solver.add_clause([       ~var2, ~var3, ~var4])
-
+        solver.add_at_most_two([var1, var2, var3, var4])
 
     ## @brief 2x3マスのコの字経路を禁止する制約を作る．
     #

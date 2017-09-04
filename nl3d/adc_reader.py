@@ -1,45 +1,50 @@
 #! /usr/bin/env python3
 
-### @file adc2017_reader.py
-### @brief ADC2017_Readerの定義ファイル
+### @file adc_reader.py
+### @brief ADC_Reader の定義ファイル
 ### @author Yusuke Matsunaga (松永 裕介)
 ###
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
 import re
-from nl3d.v2017.dimension import Dimension
-from nl3d.v2017.problem import Problem
-from nl3d.v2017.solution import Solution
-from nl3d.v2017.point import Point
+from nl3d.dimension import Dimension
+from nl3d.point import Point
+from nl3d.problem import Problem
+from nl3d.solution import Solution
 
-### @brief 3D版(ADC2017)のファイルを読み込むためのパーサークラス
+### @brief ADC2016/ADC2017 フォーマットの読み込み用クラス
 ###
 ### @code
-### reader = ADC2017_Reader()
+### reader = ADC_Reader()
 ###
-### fin1 = file('filename1', 'rt')
+### fin1 = file('filename1', 'r')
 ### if fin1 is not None :
 ###    problem = reader.read_problem(fin1)
 ###    ...
 ###
-### fin2 = file('filename2', 'rt')
+### fin2 = file('filename2', 'r')
 ### if fin2 is not None :
 ###    solution = reader.read_solution(fin2)
 ###    ...
 ### @endcode
 ###
 ### という風に用いる．
-class ADC2017_Reader :
+###
+### ADC2016 フォーマットには VIA# 行があり ADC2017 フォーマットには VIA# 行がない．<br>
+### 見かけ上の違いはそれだけなので同一のコードを用いる．
+class ADC_Reader :
 
     ### @brief 初期化
     def __init__(self) :
         # 正規表現のパタンを作る．
-        # conmgr_master/server/nlcheck.py のパクリ
-        self.__SIZE       = re.compile('SIZE +([0-9]+)X([0-9]+)X([0-9]+)', re.IGNORECASE)
-        self.__LINE_NUM   = re.compile('LINE_NUM +([0-9]+)', re.IGNORECASE)
-        self.__LINE_name  = re.compile('LINE#(\d+) +\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
-        self.__LINE_pos   = re.compile('[- ]\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
+        # conmgr/server/nlcheck.__y のパクリ
+        self.__SIZE3D = re.compile('SIZE +([0-9]+)X([0-9]+)X([0-9]+)', re.IGNORECASE)
+        self.__LINE_NUM = re.compile('LINE_NUM +([0-9]+)', re.IGNORECASE)
+        self.__LINE3D_name = re.compile('LINE#(\d+) +\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
+        self.__LINE3D_pos  = re.compile('[- ]\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
+        self.__VIA3D_name = re.compile('VIA#([a-z]+) +(\((\d+),(\d+),(\d+)\))+', re.IGNORECASE)
+        self.__VIA3D_pos  = re.compile('[- ]\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
         self.__LAYER_name = re.compile('LAYER ([0-9]+)', re.IGNORECASE)
 
     ### @brief 問題ファイルを読み込む．
@@ -47,12 +52,13 @@ class ADC2017_Reader :
     ### @return Problem を返す．
     ###
     ### 読み込んだファイルの内容に誤りがある場合には None を返す．
-    def read_problem(self, fin) :
+    def read_problem(self, fin, format = 'adc2017') :
         self.__problem = Problem()
 
         self.__nerr = 0
         self.__dim = None
         self.__line_num = 0
+        self.__via_num = 0
 
         self.__cur_line = ''
         self.__cur_lineno = 0
@@ -63,6 +69,10 @@ class ADC2017_Reader :
         # ネット番号の重複チェック用の辞書
         # そのネット番号を定義している行番号を入れる．
         self.__net_dict = dict()
+
+        # ビアラベルの重複チェック用の辞書
+        # そのビアを定義している行番号を入れる．
+        self.__via_dict = dict()
 
         # 基本的には1行づつ読み込んで処理していく．
         while True :
@@ -82,20 +92,24 @@ class ADC2017_Reader :
             self.__cur_line = line
 
             # SIZE 行の処理
-            if self.read_SIZE() :
+            if self.__read_SIZE() :
                 self.__problem.set_size(self.__dim)
                 continue;
 
             # LINE_NUM 行の処理
-            if self.read_LINE_NUM() :
+            if self.__read_LINE_NUM() :
                 continue
 
             # LINE# 行の処理
-            if self.read_LINE() :
+            if self.__read_LINE() :
+                continue
+
+            # VIA# 行の処理
+            if self.__read_VIA() :
                 continue
 
             # それ以外はエラー
-            self.error('syntax error')
+            self.__error('syntax error')
 
         # エラーがなければ Problem を返す．
         if self.__nerr == 0 :
@@ -136,27 +150,28 @@ class ADC2017_Reader :
             self.__cur_line = line
 
             # SIZE 行の処理
-            if self.read_SIZE() :
+            if self.__read_SIZE() :
                 self.__solution.set_size(self.__dim)
                 self.__cur_y = self.__dim.height
                 continue;
 
             # LAYER 行の処理
-            if self.read_LAYER() :
+            if self.__read_LAYER() :
                 continue
 
             # それ以外
             # 1行分の値が','で区切られている．
             if self.__cur_y == self.__dim.height :
-                self.error("# of lines mismatch.")
-                print('cur_y = {}'.format(self.__cur_y))
+                self.__error("# of lines mismatch.")
+                print('_cur_y = {}'.format(self.__cur_y))
                 continue
 
             val_list = line.split(',')
             n = len(val_list)
             if n != self.__dim.width :
-                self.error('# of elements mismatch')
+                self.__error('# of elements mismatch')
                 continue
+
             for x in range(0, self.__dim.width) :
                 val = int(val_list[x])
                 self.__solution.set_val(x, self.__cur_y, self.__cur_z, val)
@@ -164,7 +179,7 @@ class ADC2017_Reader :
             if self.__cur_y == self.__dim.height :
                 self.__cur_z += 1
 
-        # エラーがなければ Solution を返す．
+        # エラーがなければ Problem を返す．
         if self.__nerr == 0 :
             return self.__solution
         else :
@@ -178,15 +193,15 @@ class ADC2017_Reader :
     ### - すでに別のSIZE行があった．
     ###
     ### 返り値の真偽はエラーの有無とは関係ない．
-    def read_SIZE(self) :
+    def __read_SIZE(self) :
         # SIZE行のパターンにマッチするか調べる．
-        m = self.__SIZE.match(self.__cur_line)
+        m = self.__SIZE3D.match(self.__cur_line)
         if m is None :
             return False
 
         if self.__has_SIZE :
             # すでに別の SIZE行があった．
-            self.error("Duplicated 'SIZE' line, previously defined at line {}".format(self.SIZE_lineno))
+            self.__error("Duplicated 'SIZE' line, previously defined at line {}".format(self.SIZE_lineno))
             return True
 
         width = int(m.group(1))
@@ -205,7 +220,7 @@ class ADC2017_Reader :
     ### - すでに別の LINE_NUM 行があった．
     ###
     ### 返り値の真偽はエラーの有無とは関係ない．
-    def read_LINE_NUM(self) :
+    def __read_LINE_NUM(self) :
         # LINE_NUM 行のパターンにマッチするか調べる．
         m = self.__LINE_NUM.match(self.__cur_line)
         if m is None :
@@ -213,7 +228,7 @@ class ADC2017_Reader :
 
         if self.__has_LINE_NUM :
             # すでに別の LINE_NUM 行があった．
-            self.error("Duplicated 'LINE_NUM' line, previously defined at line {}".format(self.LINE_NUM_lineno))
+            self.__error("Duplicated 'LINE_NUM' line, previously defined at line {}".format(self.LINE_NUM_lineno))
             return True
 
         self.__line_num = int(m.group(1))
@@ -234,20 +249,20 @@ class ADC2017_Reader :
     ### - 指定されている座標の数が2つ以外(syntax error)．
     ###
     ### 返り値の真偽はエラーの有無とは関係ない．
-    def read_LINE(self) :
+    def __read_LINE(self) :
         # LINE行のパターンにマッチするか調べる．
-        m = self.__LINE_name.match(self.__cur_line)
+        m = self.__LINE3D_name.match(self.__cur_line)
         if m is None :
             return False
 
         if not self.__has_SIZE :
             # SIZE 行がない．
-            self.error("Missing 'SIZE' before 'LINE'")
+            self.__error("Missing 'SIZE' before 'LINE'")
             return True
 
         if not self.__has_LINE_NUM :
             # LINE_NUM 行がない．
-            self.error("Missing 'LINE_NUM' before 'LINE'")
+            self.__error("Missing 'LINE_NUM' before 'LINE'")
             return True
 
         # 線分番号を得る．
@@ -255,24 +270,24 @@ class ADC2017_Reader :
 
         # 番号が範囲内にあるかチェックする．
         if not 1 <= net_id <= self.__line_num :
-            self.error('LINE#{} is out of range'.format(net_id))
+            self.__error('LINE#{} is out of range'.format(net_id))
             return True
 
         # 重複していないか調べる．
         if net_id in self.__net_dict :
             prev = self.__net_dict[net_id]
-            self.error('Duplicated LINE#{}, previously defined at line {}.'.format(net_id, prev))
+            self.__error('Duplicated LINE#{}, previously defined at line {}.'.format(net_id, prev))
             return True
         self.__net_dict[net_id] = self.__cur_lineno
 
         # 線分の始点と終点を求める．
         count = 0
-        for m in self.__LINE_pos.finditer(self.__cur_line) :
+        for m in self.__LINE3D_pos.finditer(self.__cur_line) :
             x = int(m.group(1))
             y = int(m.group(2))
-            z = int(m.group(3)) - 1 # ADC2017フォーマットでは層番号は1から始まる．
+            z = int(m.group(3)) - 1 # ADC2016フォーマットでは層番号は1から始まる．
             # 範囲チェックを行う．
-            if not self.check_range(x, y, z) :
+            if not self.__check_range(x, y, z) :
                 return True
 
             if count == 0 :
@@ -284,10 +299,80 @@ class ADC2017_Reader :
             count += 1
 
         if count != 2 :
-            self.error('Syntax error')
+            self.__error('Syntax error')
             return True
 
         self.__problem.add_net(net_id, start_point, end_point)
+        return True
+
+    ### @brief VIA行を読み込む．
+    ### @retval True VIA行だった．
+    ### @retval False VIA行ではなかった．
+    ###
+    ### 以下の場合にエラーとなる．
+    ### - SIZE行が定義されていない．
+    ### - 座標または層番号が範囲外だった．
+    ### - 層ごとのX座標またはY座標が異なっている．
+    ### - 層番号が連続していない．(順不同)
+    ###
+    ### 返り値の真偽はエラーの有無とは関係ない．
+    def __read_VIA(self) :
+        # VIA行のパターンにマッチするか調べる．
+        m = self.__VIA3D_name.match(self.__cur_line)
+        if m is None :
+            return False
+
+        if not self.__has_SIZE :
+            # SIZE 行がない．
+            self.__error("Missing 'SIZE' before 'VIA'")
+            return True
+
+        via_label = m.groups()[0]
+
+        # ラベルが重複していないか調べる．
+        if via_label in self.__via_dict :
+            prev = self.__via_dict[via_label]
+            self.__error('Duplicated VIA#{}, previously defined at line {}'.format(via_label, prev))
+            return True
+        self.__via_dict[via_label] = self.__cur_lineno
+
+        first_time = True
+        z_list = []
+        for m in self.__VIA3D_pos.finditer(self.__cur_line) :
+            x, y, z = m.groups()
+            x = int(x)
+            y = int(y)
+            z = int(z) - 1 # ファイルフォーマットでは層番号は1から始まる．
+            # 範囲チェックを行う．
+            if not self.__check_range(x, y, z) :
+                return True
+
+            if first_time :
+                x0 = x
+                y0 = y
+                first_time = False
+            else :
+                # すべての層で x, y 座標は同じでなければならない．
+                if x != x0 :
+                    self.__error("X({}) is differnt from the first point's X({})".format(x, x0))
+                    return True
+                if y != y0 :
+                    self.__error("Y({}) is differnt from the first point's Y({})".format(y, y0))
+                    return True
+                # 同じことが確認されたら x, y に用はない．
+            z_list.append(z)
+
+        # z のリストをソートする．
+        z_list.sort()
+        n = len(z_list)
+        z1 = z_list[0]
+        z2 = z_list[n - 1]
+        if (z2 - z1) != (n - 1) :
+            # z1 から z2 の連続した区間になっていない．
+            self.__error('Some layers are missing')
+            return True
+
+        self.__problem.add_via(via_label, x0, y0, z1, z2)
         return True
 
     ### LAYER 行の処理を行う．
@@ -298,7 +383,7 @@ class ADC2017_Reader :
     ### - LAYER 番号が異なる．
     ###
     ### 返り値の真偽はエラーの有無とは関係ない．
-    def read_LAYER(self) :
+    def __read_LAYER(self) :
         # LAYER行のパターンにマッチするか調べる．
         m = self.__LAYER_name.match(self.__cur_line)
         if m is None :
@@ -306,17 +391,17 @@ class ADC2017_Reader :
 
         if not self.__has_SIZE :
             # SIZE 行がない．
-            self.error("'SIZE' does not exist.")
+            self.__error("'SIZE' does not exist.")
             return True
 
         if self.__cur_y != self.__dim.height :
-            self.error("# of lines mismatch.")
+            self.__error("# of lines mismatch.")
             return True
 
         lay = int(m.group(1))
         expected = self.__cur_z + 1
         if lay != expected :
-            self.error('Illegal LAYER ID {}, {} expected.'.format(lay, expected))
+            self.__error('Illegal LAYER ID {}, {} expected.'.format(lay, expected))
             return True
 
         self.__cur_y = 0
@@ -326,17 +411,17 @@ class ADC2017_Reader :
     ### @param[in] x, y, z 座標
     ### @retval True 範囲内だった．
     ### @retval False 範囲外だった．
-    def check_range(self, x, y, z) :
+    def __check_range(self, x, y, z) :
         if not 0 <= x < self.__dim.width :
-            self.error('X({}) is out of range.'.format(x))
+            self.__error('X({}) is out of range.'.format(x))
             return False
 
         if not 0 <= y < self.__dim.height :
-            self.error('Y({}) is out of range.'.format(y))
+            self.__error('Y({}) is out of range.'.format(y))
             return False
 
         if not 0 <= z < self.__dim.depth :
-            self.error('Z({}) is out of range.'.format(z + 1))
+            self.__error('Z({}) is out of range.'.format(z + 1))
             return False
 
         return True
@@ -344,10 +429,10 @@ class ADC2017_Reader :
     ### エラー処理
     ### @param[in] msg エラーメッセージ
     ###
-    ### nerr の値が加算される．
-    def error(self, msg) :
+    ### self.__nerr の値が加算される．
+    def __error(self, msg) :
         print('Error at line {}: {}'.format(self.__cur_lineno, msg))
         print('    {}'.format(self.__cur_line))
         self.__nerr += 1
 
-# end of adc2017_reader.py
+# end of adc2016_reader.py

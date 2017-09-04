@@ -1,15 +1,13 @@
 #! /usr/bin/env python3
-#
-# @file nlsolution.py
-# @brief Solution の定義ファイル
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2017 Yusuke Matsunaga
-# All rights reserved.
+
+### @file nlsolution.py
+### @brief Solution の定義ファイル
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2017 Yusuke Matsunaga
+### All rights reserved.
 
 import sys
-from nl3d.v2017.dimension import Dimension
-from nl3d.v2017.graph import Graph
 
 ### @brief 解を表すクラス
 class Solution :
@@ -30,17 +28,16 @@ class Solution :
         self.__grid_array = [0 for i in range(0, self.__dim.grid_size)]
 
     ### @brief グラフと経路リストから内容を設定する．
-    ### @param[in] graph 問題を表すグラフ
+    ### @param[in] dim サイズ(Dimension)
     ### @param[in] route_list 各線分の経路のリスト
     ###
     ### 経路は Point のリスト
-    def set_from_route_list(self, graph, route_list) :
-        self.set_size(graph.dimension)
+    def set_from_route_list(self, dim, route_list) :
+        self.set_size(dim)
 
         # 経路上のマス目に線分番号を書き込む．
-        for net_id in range(0, graph.net_num) :
+        for net_id, route in enumerate(route_list) :
             val = net_id + 1
-            route = route_list[net_id]
             for node in route :
                 set_val(node.point, val)
 
@@ -95,3 +92,5 @@ class Solution :
                     index = self.__dim.xyz_to_index(x, y, z)
                     line += '{:3d}'.format(self.__grid_array[index])
                 print(line, file=fout)
+
+# end of solution.py

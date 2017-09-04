@@ -11,22 +11,22 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from nl3d.gui.nlviewwidget import NlViewWidget
+from nl3d.gui.viewwidget import ViewWidget
 
 
-class NlViewMgr(QObject) :
+class ViewMgr(QObject) :
 
     ## @brief 初期化を行う．
     def __init__(self, parent = None) :
 
-        super(NlViewMgr, self).__init__(parent)
+        super(ViewMgr, self).__init__(parent)
 
         self.clear()
 
 
     ## @brief クリアする．
     def clear(self) :
-        self._ViewList = []
+        self.__ViewList = []
 
 
     ## @brief 問題を設定する．
@@ -39,19 +39,19 @@ class NlViewMgr(QObject) :
 
         # 各層を表すウィジェットを生成する．
         for d in range(0, depth) :
-            vw = NlViewWidget()
+            vw = ViewWidget()
             vw.set_size(width, height)
-            self._ViewList.append(vw)
+            self.__ViewList.append(vw)
             vw.show()
 
         # 終端の設定を行う．
         for net_id, (label, s, e) in enumerate(problem.net_list()) :
-            self._set_terminal(s, net_id)
-            self._set_terminal(e, net_id)
+            self.__set_terminal(s, net_id)
+            self.__set_terminal(e, net_id)
 
         # ビアの設定を行う．
         for via_id, via in enumerate(problem.via_list()) :
-            self._set_via(via, via_id)
+            self.__set_via(via, via_id)
 
 
     ## @brief 問題と解を設定する．
@@ -63,7 +63,7 @@ class NlViewMgr(QObject) :
         depth = problem.depth
 
         for d in range(0, depth) :
-            vw = self._ViewList[d]
+            vw = self.__ViewList[d]
             vw.set_solution_mode()
             for x in range(0, width) :
                 for y in range(0, height) :
@@ -72,7 +72,7 @@ class NlViewMgr(QObject) :
 
 
     ## @brief 終端の設定を行う．
-    def _set_terminal(self, point, label) :
+    def __set_terminal(self, point, label) :
         x = point.x
         y = point.y
         z = point.z
@@ -81,7 +81,7 @@ class NlViewMgr(QObject) :
 
 
     ## @brief ビアの設定を行う．
-    def _set_via(self, via, via_id) :
+    def __set_via(self, via, via_id) :
         label = via.label
         x = via.x
         y = via.y
