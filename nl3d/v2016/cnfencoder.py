@@ -10,7 +10,7 @@
 import math
 from nl3d.v2016.graph import Node, Edge, Graph
 from nl3d.solution import Solution
-from pym_sat import Solver, VarId, Literal, Bool3
+from pym_sat import SatSolver, VarId, Literal, Bool3
 
 
 ### @brief 問題を表すCNF式を生成するクラス
@@ -25,7 +25,7 @@ class CnfEncoder :
     ###
     ### ここではSATの変数の割当のみ行う．
     def __init__(self, graph, solver_type, binary_encoding) :
-        solver = Solver(solver_type)
+        solver = SatSolver(solver_type)
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
@@ -267,13 +267,36 @@ class CnfEncoder :
                     var_h6 = self._edge_var(edge_h6)
                     solver.add_clause(-var_v1, -var_v2, -var_h4, -var_h5, -var_h6)
 
+    ## @brief 問題を解く．
+    ## @return result, solution を返す．
+    ##
+    ## - result は 'OK', 'NG', 'Abort' の3種類
+    ## - solution はナンバーリンクの解
+    def solve(self, var_limit) :
+        solver = self.__solver
+        print('SAT start')
+        print(' # of variables: {}'.format(solver.variable_num()))
+        print(' # of clauses:   {}'.format(solver.clause_num()))
+        print(' # of literals:  {}'.format(solver.literal_num()))
+        if var_limit > 0 and self.__solver.variable_num() > var_limit :
+            print('  variable limit ({}) exceeded'.format(var_limit))
+            return 'Abort', None
+        stat, model = solver.solve()
+        print('    end')
+        if stat == Bool3.TRUE :
+            verbose = False
+            net_num = self.__graph.net_num
+            route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
+            router = Router(self.__graph.dimension, route_list, verbose)
+            router.reroute()
+            solution = router.to_solution()
+            return 'OK', solution
+        elif stat == Bool3.FALSE :
+            return 'NG', None
+        elif stat == Bool3.UNKNOWN :
+            return 'Abort', None
 
-    ### @brief SATモデルから経路のリストを作る．
-    def __decode_model(self, model) :
-        net_num = self.__graph.net_num
-        route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
-        return route_list
-
+    ### @brief SATモデルから経路を作る．
     def __find_route(self, net_id, model) :
         graph = self.__graph
         start, end = graph.terminal_node_pair(net_id)

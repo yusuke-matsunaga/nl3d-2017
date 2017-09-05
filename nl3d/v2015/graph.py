@@ -7,6 +7,7 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
+import sys
 from nl3d.point import Point
 from nl3d.problem import Problem
 
@@ -170,7 +171,7 @@ class Node :
 
     ### @brief 内容を表す文字列を返す．
     def str(self) :
-        ans = '#{}: ({}, {}, {})'.format(self.id, self.x, self.y, self.z)
+        ans = '#{}: ({}, {})'.format(self.id, self.x, self.y)
 
         if self.is_terminal :
             ans += ' [Net#{}]'.format(self.terminal_id)
@@ -234,7 +235,7 @@ class Graph :
     ### @param[in] problem 問題を表すオブジェクト(Problem)
     def set_problem(self, problem) :
         self.__dim = problem.dimension
-        self._net_num = problem.net_num
+        self.__net_num = problem.net_num
 
         # 節点を作る．
         # node_array[x][y] に (x, y) の節点が入る．
@@ -271,6 +272,10 @@ class Graph :
             node2.set_terminal(net_id)
             self.__terminal_node_pair_list.append((node1, node2))
 
+    ### @brief 問題のサイズ
+    @property
+    def dimension(self) :
+        return self.__dim
 
     ### @brief 問題の幅
     @property
@@ -318,8 +323,8 @@ class Graph :
             dir1 = 0
             dir2 = 1
         else :
-            dir1 = 3
-            dir2 = 4
+            dir1 = 2
+            dir2 = 3
         node1.add_edge(edge, dir1)
         node2.add_edge(edge, dir2)
 
@@ -335,14 +340,14 @@ class Graph :
         return node
 
     ### @brief 内容を出力する．
-    def dump(self) :
-        print('Nodes:')
+    def dump(self, fout = sys.stdout) :
+        print('Nodes:', file = fout)
         for node in self.__node_list :
-            print(node.str())
+            print(node.str(), file = fout)
 
-        print('')
-        print('Edges:')
+        print('', file = fout)
+        print('Edges:', file = fout)
         for edge in self.__edge_list :
-            print(edge.str())
+            print(edge.str(), file = fout)
 
 # end of graph.py

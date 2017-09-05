@@ -12,6 +12,7 @@ import os
 import argparse
 
 import nl3d
+import nl3d.v2015
 import nl3d.v2016
 import nl3d.v2017
 
@@ -23,6 +24,8 @@ parser.add_argument('-l', '--var_limit', type = int,
                     help = 'specify the variable number limit')
 parser.add_argument('-b', '--binary_encoding', action = 'store_true',
                     help = 'use binary_encoding')
+parser.add_argument('-v', '--verbose', action = 'store_true',
+                    help = 'set verbose mode')
 parser.add_argument('input', type = str,
                     help = 'problem filename')
 
@@ -44,27 +47,30 @@ else :
 # ２進符号化を用いる時に True にする．
 binary_encoding = args.binary_encoding
 
+verbose = args.verbose
+
 # ファイルリーダーの作成
 reader = nl3d.ADC_Reader()
 
 with open(ifile, 'r') as fin :
     problem = reader.read_problem(fin)
 
+    if verbose :
+        print('SiZE:      {} x {} x {}'.format(problem.width, problem.height, problem.depth))
+        print('# of nets: {}'.format(problem.net_num))
+        print('# of vias: {}'.format(problem.via_num))
+
     if problem.depth == 1 :
         # ADC2015 フォーマット
-        graph = nl3d.v2015.Graph(problem)
-        status, solution = nl3d.v2015.solve_nlink(graph, var_limit, binary_encoding)
+        status, solution = nl3d.v2015.solve_nlink(problem, var_limit, binary_encoding)
     elif problem.via_num > 0 :
         # ADC2016 フォーマット
-        graph = nl3d.v2016.Graph(problem)
-        status, solution = nl3d.v2016.solve_nlink(graph, var_limit, binary_encoding)
+        status, solution = nl3d.v2016.solve_nlink(problem, var_limit, binary_encoding)
     else :
         # ADC2017 フォーマット
-        graph = nl3d.v2017.Graph(problem)
-        status, solution = nl3d.v2017.solve_nlink(graph, var_limit, binary_encoding)
+        status, solution = nl3d.v2017.solve_nlink(problem, var_limit, binary_encoding)
 
     print(status)
-    if status == 'OK' :
-        if ofile :
-            with open(ofile, 'wt') as fout :
-                solution.print(fout)
+    if status == 'OK' and ofile :
+        with open(ofile, 'wt') as fout :
+            solution.print(fout)

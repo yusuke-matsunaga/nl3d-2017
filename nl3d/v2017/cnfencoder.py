@@ -12,7 +12,7 @@ from nl3d.point import Point
 from nl3d.v2017.graph import Graph
 from nl3d.router import Router
 from nl3d.solution import Solution
-from pym_sat import Solver, VarId, Literal, Bool3
+from pym_sat import SatSolver, VarId, Literal, Bool3
 
 
 ### @brief 問題を表すCNF式を生成するクラス
@@ -27,7 +27,7 @@ class CnfEncoder :
     ###
     ### ここではSATの変数の割当のみ行う．
     def __init__(self, graph, solver_type, binary_encoding) :
-        solver = Solver(solver_type)
+        solver = SatSolver(solver_type)
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
@@ -331,20 +331,21 @@ class CnfEncoder :
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
     def solve(self, var_limit) :
+        solver = self.__solver
         print('SAT start')
-        print(' # of variables: {}'.format(self.__solver.variable_num()))
-        print(' # of clauses:   {}'.format(self.__solver.clause_num()))
-        print(' # of literals:  {}'.format(self.__solver.literal_num()))
+        print(' # of variables: {}'.format(solver.variable_num()))
+        print(' # of clauses:   {}'.format(solver.clause_num()))
+        print(' # of literals:  {}'.format(solver.literal_num()))
         if var_limit > 0 and self.__solver.variable_num() > var_limit :
             print('  variable limit ({}) exceeded'.format(var_limit))
             return 'Abort', None
-        stat, model = self.__solver.solve()
+        stat, model = solver.solve()
         print('    end')
         if stat == Bool3.TRUE :
-            route_list = self.__decode_model(model)
             verbose = False
-            router = Router(self.__graph, verbose)
-            router.set_routes(route_list)
+            net_num = self.__graph.net_num
+            route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
+            router = Router(self.__graph.dimension, route_list, verbose)
             router.reroute()
             solution = router.to_solution()
             return 'OK', solution
@@ -353,13 +354,7 @@ class CnfEncoder :
         elif stat == Bool3.UNKNOWN :
             return 'Abort', None
 
-
-    ## @brief SATモデルから経路のリストを作る．
-    def __decode_model(self, model) :
-        net_num = self.__graph.net_num
-        route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
-        return route_list
-
+    ## @brief SATモデルから経路を作る．
     def __find_route(self, net_id, model) :
         graph = self.__graph
         start, end = graph.terminal_node_pair(net_id)

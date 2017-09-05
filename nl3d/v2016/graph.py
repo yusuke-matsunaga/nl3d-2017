@@ -409,8 +409,8 @@ class Graph :
             dir1 = 0
             dir2 = 1
         else :
-            dir1 = 3
-            dir2 = 4
+            dir1 = 2
+            dir2 = 3
         node1.add_edge(edge, dir1)
         node2.add_edge(edge, dir2)
 

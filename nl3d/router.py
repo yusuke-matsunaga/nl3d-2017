@@ -108,14 +108,11 @@ def check_bend(point1, point2, point3) :
 class Router :
 
     ## @brief 初期化
-    def __init__(self, graph, verbose) :
-        self.__graph = graph
-        self.__verbose = verbose
-
-        dimension = graph.dimension
+    def __init__(self, dimension, route_list, verbose) :
         self.__dimension = dimension
         self.__grid_num = dimension.grid_size
-        self.__net_num = graph.net_num
+        self.__net_num = len(route_list)
+        self.__verbose = verbose
 
         self.__cell_array = [Cell(index, dimension) for index in range(0, self.__grid_num)]
 
@@ -137,11 +134,7 @@ class Router :
             if z < d - 1 :
                 cell.set_adj_cell(5, self.__cell(Point(x    , y    , z + 1)))
 
-        self.__route_info_array = None
-
-    ## @brief 経路情報をセットする．
-    def set_routes(self, route_list) :
-        self.__route_info_array = [RouteInfo(route_list[i]) for i in range(0, self.__net_num)]
+        self.__route_info_array = [RouteInfo(route) for route in route_list]
 
     ## @brief 連結性を壊さずに線を引き直す．
     def reroute(self) :

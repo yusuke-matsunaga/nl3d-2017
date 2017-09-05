@@ -9,8 +9,10 @@
 
 import math
 from nl3d.v2015.graph import Node, Edge, Graph
+from nl3d.point import Point
+from nl3d.router import Router
 from nl3d.solution import Solution
-from pym_sat import Solver, VarId, Literal, Bool3
+from pym_sat import SatSolver, VarId, Literal, Bool3
 
 
 ### @brief 問題を表すCNF式を生成するクラス
@@ -25,7 +27,7 @@ class CnfEncoder :
     ###
     ### ここではSATの変数の割当のみ行う．
     def __init__(self, graph, solver_type, binary_encoding) :
-        solver = Solver(solver_type)
+        solver = SatSolver(solver_type)
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
@@ -34,7 +36,7 @@ class CnfEncoder :
         # 枝に対応する変数を作る．
         # 結果は __edge_var_list に格納する．
         # __edge_var_list[edge.id] に edge に対応する変数が入る．
-        self.__edge_var_list = [solver.new_variable() for edge in graph.edge_list]
+        self.__edge_var_list = [Literal(solver.new_variable()) for edge in graph.edge_list]
 
         # 節点のラベルを表す変数のリストを作る．
         # 節点のラベルは log2(nn + 1) 個の変数で表す(binaryエンコーディング)
@@ -82,7 +84,7 @@ class CnfEncoder :
     ### 経路は存在しない．
     def make_ushape_constraint(self) :
         graph = self.__graph
-        solver = self._solver
+        solver = self.__solver
         dir1 = 1
         dir2 = 3
         for node_00 in graph.node_list :
@@ -141,7 +143,7 @@ class CnfEncoder :
         if edge_h1 == None :
             return
         node_10 = edge_h1.alt_node(node_00)
-        if node_10.is_block :
+        if node_10.is_terminal :
             return
 
         edge_h2 = node_10.edge(dir1)
@@ -159,7 +161,7 @@ class CnfEncoder :
 
         edge_h3 = node_01.edge(dir1)
         node_11 = edge_h3.alt_node(node_01)
-        if node_11.is_block :
+        if node_11.is_terminal :
             return
 
         edge_h4 = node_11.edge(dir1)
@@ -167,11 +169,11 @@ class CnfEncoder :
         solver = self.__solver
         var1 = self._edge_var(edge_v1)
         var4 = self._edge_var(edge_v2)
-        if not (node_00.is_block or node_20.is_block) :
+        if not (node_00.is_terminal or node_20.is_terminal) :
             var2 = self.__edge_var(edge_h1)
             var3 = self.__edge_var(edge_h2)
             solver.add_clause([~var1, ~var2, ~var3, ~var4])
-        if not (node_01.is_block or node_21.is_block) :
+        if not (node_01.is_terminal or node_21.is_terminal) :
             var2 = self.__edge_var(edge_h3)
             var3 = self.__edge_var(edge_h4)
             solver.add_clause([~var1, ~var2, ~var3, ~var4])
@@ -202,14 +204,14 @@ class CnfEncoder :
                 if edge_h1 == None :
                     continue
                 node_10 = edge_h1.alt_node(node_00)
-                if node_10.is_block :
+                if node_10.is_terminal :
                     continue
 
                 edge_h2 = node_10.lower_edge if d else node_10.x2_edge
                 if edge_h2 == None :
                     continue
                 node_20 = edge_h2.alt_node(node_10)
-                if node_20.is_block :
+                if node_20.is_terminal :
                     continue
 
                 edge_h3 = node_20.lower_edge if d else node_20.x2_edge
@@ -226,12 +228,12 @@ class CnfEncoder :
 
                 edge_h4 = node_01.lower_edge if d else node_01.x2_edge
                 node_11 = edge_h4.alt_node(node_01)
-                if node_11.is_block :
+                if node_11.is_terminal :
                     continue
 
                 edge_h5 = node_11.lower_edge if d else node_11.x2_edge
                 node_21 = edge_h5.alt_node(node_11)
-                if node_21.is_block :
+                if node_21.is_terminal :
                     continue
 
                 edge_h6 = node_21.lower_edge if d else node_21.x2_edge
@@ -240,24 +242,47 @@ class CnfEncoder :
 
                 var_v1 = self._edge_var(edge_v1)
                 var_v2 = self._edge_var(edge_v2)
-                if not (node_00.is_block or node_30.is_block) :
+                if not (node_00.is_terminal or node_30.is_terminal) :
                     var_h1 = self._edge_var(edge_h1)
                     var_h2 = self._edge_var(edge_h2)
                     var_h3 = self._edge_var(edge_h3)
-                    solver.add_clause(-var_v1, -var_v2, -var_h1, -var_h2, -var_h3)
-                if not (node_01.is_block or node_31.is_block) :
+                    solver.add_clause([~varf_v1, ~var_v2, ~var_h1, ~var_h2, ~var_h3])
+                if not (node_01.is_terminal or node_31.is_terminal) :
                     var_h4 = self._edge_var(edge_h4)
                     var_h5 = self._edge_var(edge_h5)
                     var_h6 = self._edge_var(edge_h6)
-                    solver.add_clause(-var_v1, -var_v2, -var_h4, -var_h5, -var_h6)
+                    solver.add_clause([~var_v1, ~var_v2, ~var_h4, ~var_h5, ~var_h6])
 
+    ## @brief 問題を解く．
+    ## @return result, solution を返す．
+    ##
+    ## - result は 'OK', 'NG', 'Abort' の3種類
+    ## - solution はナンバーリンクの解
+    def solve(self, var_limit) :
+        solver = self.__solver
+        print('SAT start')
+        print(' # of variables: {}'.format(solver.variable_num()))
+        print(' # of clauses:   {}'.format(solver.clause_num()))
+        print(' # of literals:  {}'.format(solver.literal_num()))
+        if var_limit > 0 and self.__solver.variable_num() > var_limit :
+            print('  variable limit ({}) exceeded'.format(var_limit))
+            return 'Abort', None
+        stat, model = solver.solve()
+        print('    end')
+        if stat == Bool3.TRUE :
+            verbose = False
+            net_num = self.__graph.net_num
+            route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
+            router = Router(self.__graph.dimension, route_list, verbose)
+            router.reroute()
+            solution = router.to_solution()
+            return 'OK', solution
+        elif stat == Bool3.FALSE :
+            return 'NG', None
+        elif stat == Bool3.UNKNOWN :
+            return 'Abort', None
 
-    ### @brief SATモデルから経路のリストを作る．
-    def __decode_model(self, model) :
-        net_num = self.__graph.net_num
-        route_list = [self.__find_route(net_id, model) for net_id in range(0, net_num)]
-        return route_list
-
+    ### @brief SATモデルから経路を作る．
     def __find_route(self, net_id, model) :
         graph = self.__graph
         start, end = graph.terminal_node_pair(net_id)
@@ -265,7 +290,7 @@ class CnfEncoder :
         node = start
         route = []
         while True :
-            route.append(Point(node.x, node.y, node.z))
+            route.append(Point(node.x, node.y, 0))
             if node == end :
                 break
 
@@ -334,13 +359,13 @@ class CnfEncoder :
         for i in range(0, n) :
             nvar1 = nvar_list1[i]
             nvar2 = nvar_list2[i]
-            self._make_conditional_equal(evar, nvar1, nvar2)
+            self.__make_conditional_equal(evar, nvar1, nvar2)
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
     # @param[in] net_id 固定する線分番号
     def __make_label_constraint(self, node, net_id) :
-        solver = self.__solve
+        solver = self.__solver
         lvar_list = self.__node_vars_list[node.id]
         for i, lvar in enumerate(lvar_list) :
             if (1 << i) & (net_id + 1) :
@@ -366,90 +391,12 @@ class CnfEncoder :
     def __edge_var(self, edge) :
         return self.__edge_var_list[edge.id]
 
-    ## @brief 条件付きでリストの中の変数がすべて False となる制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var_list 対象の変数のリスト
-    def __make_conditional_zero_hot(self, cvar, var_list) :
-        solver = self.__solver
-        for var in var_list :
-            solver.add_clause([~cvar, ~var])
-
-    ## @brief 条件付きでリストの中の変数が1つだけ True となる制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var_list 対象の変数のリスト
-    def __make_conditional_one_hot(self, cvar, var_list) :
-        solver = self._solver
-        n = len(var_list)
-        # 要素数で場合分け
-        if n == 2 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            solver.add_clause(-cvar, -var0, -var1)
-            solver.add_clause(-cvar,  var0,  var1)
-        elif n == 3 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            solver.add_clause(-cvar, -var0, -var1       )
-            solver.add_clause(-cvar, -var0,        -var2)
-            solver.add_clause(-cvar,        -var1, -var2)
-            solver.add_clause(-cvar,  var0,  var1,  var2)
-        elif n == 4 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            var3 = var_list[3]
-            solver.add_clause(-cvar, -var0, -var1              )
-            solver.add_clause(-cvar, -var0,        -var2       )
-            solver.add_clause(-cvar, -var0,               -var3)
-            solver.add_clause(-cvar,        -var1, -var2       )
-            solver.add_clause(-cvar,        -var1,        -var3)
-            solver.add_clause(-cvar,               -var2, -var3)
-            solver.add_clause(-cvar,  var0,  var1,  var2,  var3)
-        else :
-            assert False
-
-    ## @brief リストの中の変数が0個か2個 True になるという制約
-    # @param[in] var_list 対象の変数のリスト
-    def _make_zero_or_two_hot(self, var_list) :
-        solver = self._solver
-        n = len(var_list)
-        # 要素数で場合分け
-        if n == 2 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            solver.add_clause( var0, -var1)
-            solver.add_clause(-var0,  var1)
-        elif n == 3 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            solver.add_clause(-var0, -var1, -var2)
-            solver.add_clause( var0,  var1, -var2)
-            solver.add_clause( var0, -var1,  var2)
-            solver.add_clause(-var0,  var1,  var2)
-        elif n == 4 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            var3 = var_list[3]
-            solver.add_clause(-var0, -var1, -var2       )
-            solver.add_clause(-var0, -var1,        -var3)
-            solver.add_clause(-var0,        -var2, -var3)
-            solver.add_clause(       -var1, -var2, -var3)
-            solver.add_clause( var0,  var1,  var2, -var3)
-            solver.add_clause( var0,  var1, -var2,  var3)
-            solver.add_clause( var0, -var1,  var2,  var3)
-            solver.add_clause(-var0,  var1,  var2,  var3)
-        else :
-            assert False
-
     ## @brief 条件付きで２つの変数が等しくなるという制約を作る．
     # @param[in] cvar 条件を表す変数
     # @param[in] var1, var2 対象の変数
-    def _make_conditional_equal(self, cvar, var1, var2) :
-        solver = self._solver
-        solver.add_clause(-cvar, -var1,  var2)
-        solver.add_clause(-cvar,  var1, -var2)
+    def __make_conditional_equal(self, cvar, var1, var2) :
+        solver = self.__solver
+        solver.add_clause([~cvar, ~var1,  var2])
+        solver.add_clause([~cvar,  var1, ~var2])
 
 # end-of-class CnfEncoder
