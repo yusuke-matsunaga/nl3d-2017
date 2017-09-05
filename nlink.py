@@ -49,7 +49,12 @@ reader = nl3d.ADC_Reader()
 
 with open(ifile, 'r') as fin :
     problem = reader.read_problem(fin)
-    if problem.via_num > 0 :
+
+    if problem.depth == 1 :
+        # ADC2015 フォーマット
+        graph = nl3d.v2015.Graph(problem)
+        status, solution = nl3d.v2015.solve_nlink(graph, var_limit, binary_encoding)
+    elif problem.via_num > 0 :
         # ADC2016 フォーマット
         graph = nl3d.v2016.Graph(problem)
         status, solution = nl3d.v2016.solve_nlink(graph, var_limit, binary_encoding)
