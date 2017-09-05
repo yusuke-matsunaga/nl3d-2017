@@ -21,7 +21,7 @@
 ###
 ### 値を設定する時はまず set_size(w, h, d) でサイズを設定し，
 ### そのあとでネットは add_net(label, start, end) で追加する．
-### ビアは add_via(label, x, y, z1, z2) で追加する．
+### ビアは add_via(via) で追加する．
 ### 設定された内容は clear() を呼ぶまで変わらない．
 ###
 ### ネットは net_list() で取得できる．これは反復子になっているので
@@ -106,18 +106,15 @@ class Problem :
     ### @param[in] z2 Z座標(層番号)の上限
     ###
     ### z1 < z2 を仮定している．
-    def add_via(self, label, x, y, z1, z2) :
-        assert z1 < z2
-
-        if label in self.__via_dict :
-            # すでに label というラベルのビアがあった．
+    def add_via(self, via) :
+        if via.label in self.__via_dict :
+            # すでに via.label というラベルのビアがあった．
             # スキップするだけ．
-            print('Error: Via#{} already exists.'.format(label))
+            print('Error: Via#{} already exists.'.format(via.label))
             return
 
-        via = Via(label, x, y, z1, z2)
         self.__via_list.append(via)
-        self.__via_dict[label] = via
+        self.__via_dict[via.label] = via
 
     ### @brief サイズ(Dimension)
     @property

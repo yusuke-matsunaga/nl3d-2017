@@ -10,6 +10,7 @@
 import re
 from nl3d.dimension import Dimension
 from nl3d.point import Point
+from nl3d.via import Via
 from nl3d.problem import Problem
 from nl3d.solution import Solution
 
@@ -173,8 +174,9 @@ class ADC_Reader :
                 continue
 
             for x in range(0, self.__dim.width) :
+                point = Point(x, self.__cur_y, self.__cur_z)
                 val = int(val_list[x])
-                self.__solution.set_val(x, self.__cur_y, self.__cur_z, val)
+                self.__solution.set_val(point, val)
             self.__cur_y += 1
             if self.__cur_y == self.__dim.height :
                 self.__cur_z += 1
@@ -372,7 +374,8 @@ class ADC_Reader :
             self.__error('Some layers are missing')
             return True
 
-        self.__problem.add_via(via_label, x0, y0, z1, z2)
+        via = Via(via_label, x0, y0, z1, z2)
+        self.__problem.add_via(via)
         return True
 
     ### LAYER 行の処理を行う．

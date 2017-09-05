@@ -1,25 +1,25 @@
 #! /usr/bin/env python3
 
-## @file nlviewwidget.py
-# @brief NlViewWidget の定義ファイル
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2016, 2017 Yusuke Matsunaga
-# All rights reserved.
+### @file gui/viewwidget.py
+### @brief ViewWidget の定義ファイル
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2016, 2017 Yusuke Matsunaga
+### All rights reserved.
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 
-## @brief 色と太さを設定したペンを作成する．
-def __new_pen(color, width) :
+### @brief 色と太さを設定したペンを作成する．
+def new_pen(color, width) :
     pen = QPen(color)
     pen.setWidth(width)
     return pen
 
 
-## @brief ナンバーリンクの１つの層を表すウィジェット
+### @brief ナンバーリンクの１つの層を表すウィジェット
 class ViewWidget(QWidget) :
 
     # カスタムシグナルの生成
@@ -29,10 +29,10 @@ class ViewWidget(QWidget) :
     leave   = pyqtSignal(int, int, QMouseEvent)
 
 
-    ## @brief 初期化
+    ### @brief 初期化
     def __init__(self, parent = None) :
 
-        super(NlViewWidget, self).__init__(parent)
+        super(ViewWidget, self).__init__(parent)
 
         #
         # スタイルを定義しているパラメータ
@@ -62,16 +62,16 @@ class ViewWidget(QWidget) :
         self.__BanColor    = QColor(0xB0, 0xB0, 0xB0)
 
         # 罫線用のペン
-        self.__LinePen     = __new_pen(QColor(0, 0, 0), self.__LineWidth)
+        self.__LinePen     = new_pen(QColor(0, 0, 0), self.__LineWidth)
 
         # 線分用のペン
-        self.__WirePen     = __new_pen(QColor(0, 0, 200), self.__WireWidth)
+        self.__WirePen     = new_pen(QColor(0, 0, 200), self.__WireWidth)
 
         # 端子用のペン
-        self.__TermPen     = __new_pen(QColor(50, 50, 150), self.__TermWidth)
+        self.__TermPen     = new_pen(QColor(50, 50, 150), self.__TermWidth)
 
         # ビア用のペン
-        self.__ViaPen      = __new_pen(QColor(150, 50, 50), self.__ViaWidth)
+        self.__ViaPen      = new_pen(QColor(150, 50, 50), self.__ViaWidth)
 
         # テキスト用のペン
         self.__TextPen     = QPen()
@@ -79,10 +79,10 @@ class ViewWidget(QWidget) :
         # 数字用のフォント
         self.__NumFont = QFontDatabase.systemFont(QFontDatabase.GeneralFont)
         self.__NumFont.setBold(True)
-        self.__NumFont.setPointSize(self._FontSize)
+        self.__NumFont.setPointSize(self.__FontSize)
 
         # フォントメトリックを計算しておく．
-        fm = QFontMetrics(self._NumFont)
+        fm = QFontMetrics(self.__NumFont)
         self.__NumWidth = float(fm.width("99")) * 1.4
         self.__NumHeight = float(fm.height()) * 1.4
 
@@ -115,7 +115,7 @@ class ViewWidget(QWidget) :
         self.set_size(self.__Width, self.__Height)
 
 
-    ## @brief クリアする．
+    ### @brief クリアする．
     def clear(self) :
         for x in range(0, self.__Width) :
             for y in range(0, self.__Height) :
@@ -126,11 +126,11 @@ class ViewWidget(QWidget) :
         self.__Modified = False
 
 
-    ## @brief 盤面のサイズを設定する．
-    # @param[in] width 幅
-    # @param[in] height 高さ
-    #
-    # 以前の内容はクリアされる．
+    ### @brief 盤面のサイズを設定する．
+    ### @param[in] width 幅
+    ### @param[in] height 高さ
+    ###
+    ### 以前の内容はクリアされる．
     def set_size(self, width, height) :
         self.clear()
 
@@ -145,8 +145,8 @@ class ViewWidget(QWidget) :
         self.__StateArray = [0 for i in range(0, n)]
 
 
-    ## @brief 指定されたマスが端子の時に True を返す．
-    # @param[in] x, y 座標
+    ### @brief 指定されたマスが端子の時に True を返す．
+    ### @param[in] x, y 座標
     def is_terminal(self, x, y) :
         index = self.xy_to_index(x, y)
         if self.__StateArray[index] & 1 :
@@ -155,8 +155,8 @@ class ViewWidget(QWidget) :
             return False
 
 
-    ## @brief 指定されたマスがビアの時に True を返す．
-    # @param[in] x, y 座標
+    ### @brief 指定されたマスがビアの時に True を返す．
+    ### @param[in] x, y 座標
     def is_via(self, x, y) :
         index = self.xy_to_index(x, y)
         if self.__StateArray[index] & 2 :
@@ -165,17 +165,17 @@ class ViewWidget(QWidget) :
             return False
 
 
-    ## @brief 指定されたマスの線分番号を返す．
-    # @param[in] x, y 座標
+    ### @brief 指定されたマスの線分番号を返す．
+    ### @param[in] x, y 座標
     def grid_val(self, x, y) :
         index = self.xy_to_index(x, y)
         return self.__ValArray[index]
 
 
-    ## @brief 指定されたマスのビア番号を返す．
-    # @param[in] x, y 座標
-    #
-    # 指定されたマスがビアでないときの値は不定
+    ### @brief 指定されたマスのビア番号を返す．
+    ### @param[in] x, y 座標
+    ###
+    ### 指定されたマスがビアでないときの値は不定
     def via_label(self, x, y) :
         assert self.is_via(x, y)
         index = self.xy_to_index(x, y)
@@ -183,36 +183,36 @@ class ViewWidget(QWidget) :
         return self.__LabelArray[via_id]
 
 
-    ## @brief 変更フラグをクリアする．
+    ### @brief 変更フラグをクリアする．
     def clear_modified(self) :
         self._Modified = False
 
 
-    ## @brief 変更フラグを得る．
+    ### @brief 変更フラグを得る．
     def is_modified(self) :
         return self.__Modified
 
 
-    ## @brief サイズヒントを返す．
+    ### @brief サイズヒントを返す．
     def sizeHint(self) :
         return QSize(self.__BanWidth, self.__BanHeight)
 
 
-    ## @brief 終端の設定をする．
-    # @param[in] x, y 座標
-    # @param[in] val 線分番号
+    ### @brief 終端の設定をする．
+    ### @param[in] x, y 座標
+    ### @param[in] val 線分番号
     def set_terminal(self, x, y, val) :
-        assert 0 <= x < self._Width
-        assert 0 <= y < self._Height
+        assert 0 <= x < self.__Width
+        assert 0 <= y < self.__Height
         index = self.xy_to_index(x, y)
         self.__StateArray[index] |= 1
         self.set_val(x, y, val)
 
 
-    ## @brief ビアの設定をする．
-    # @param[in] via_id ビア番号
-    # @param[in] x, y 座標
-    # @param[in] label ラベル
+    ### @brief ビアの設定をする．
+    ### @param[in] via_id ビア番号
+    ### @param[in] x, y 座標
+    ### @param[in] label ラベル
     def set_via(self, via_id, x, y, label) :
         assert 0 <= x < self.__Width
         assert 0 <= y < self.__Height
@@ -222,12 +222,12 @@ class ViewWidget(QWidget) :
         self.__LabelArray[via_id] = label
 
 
-    ## @brief 線分番号を設定する．
-    # @param[in] x, y 座標
-    # @param[in] val 線分番号
+    ### @brief 線分番号を設定する．
+    ### @param[in] x, y 座標
+    ### @param[in] val 線分番号
     def set_val(self, x, y, val) :
-        assert 0 <= x < self._Width
-        assert 0 <= y < self._Height
+        assert 0 <= x < self.__Width
+        assert 0 <= y < self.__Height
         index = self.xy_to_index(x, y)
         self.__ValArray[index] = val
         self.__Modified = True
@@ -235,13 +235,13 @@ class ViewWidget(QWidget) :
         self.update()
 
 
-    ## @brief 解の線分を描画するようにする．
+    ### @brief 解の線分を描画するようにする．
     def set_solution_mode(self) :
         self.__DrawLine = True
 
 
-    ## @brief paint イベント
-    # @param[in] event イベント構造体
+    ### @brief paint イベント
+    ### @param[in] event イベント構造体
     def paintEvent(self, event) :
 
         # ウインドウサイズの縦横比と盤面の縦横比が異なる時の補正
@@ -395,24 +395,24 @@ class ViewWidget(QWidget) :
         painter.restore()
 
 
-    ## @brief Button Press イベント
-    # @param[in] event イベント構造体
+    ### @brief Button Press イベント
+    ### @param[in] event イベント構造体
     def mousePressEvent(self, event) :
         ret, x, y = self.get_xy(event)
         if ret :
             self.clicked.emit(x, y, event)
 
 
-    ## @brief Button Release イベント
-    # @param[in] event イベント構造体
+    ### @brief Button Release イベント
+    ### @param[in] event イベント構造体
     def mouseRelaseEvent(self, event) :
         ret, x, y = self.get_xy(event)
         if ret :
             self.released.emit(x, y, event)
 
 
-    ## @brief Motion notify イベント
-    # @param[in] event イベント構造体
+    ### @brief Motion notify イベント
+    ### @param[in] event イベント構造体
     def mouseMoveEvent(self, event) :
         ret, x, y = self.get_xy(event)
         if ret :
@@ -429,21 +429,21 @@ class ViewWidget(QWidget) :
                 self.__CurY = -1
 
 
-    ## @brief マウスの座標から格子座標を得る．
-    # @param[in] event イベント構造体
-    # @retval (x, y) 格子座標
-    # @retval None 格子内に入っていなかった時
+    ### @brief マウスの座標から格子座標を得る．
+    ### @param[in] event イベント構造体
+    ### @retval (x, y) 格子座標
+    ### @retval None 格子内に入っていなかった時
     def get_xy(self, event) :
         gx = event.x() - self.__X0
         gy = event.y() - self.__Y0
 
-        if gx < 0 or gx > self._W :
+        if gx < 0 or gx > self.__W :
             return False, 0, 0
-        if gy < 0 or gy > self._H :
+        if gy < 0 or gy > self.__H :
             return False, 0, 0
 
-        lx = float(gx) * self.__BanWidth / self._W
-        ly = float(gy) * self.__BanHeight / self._H
+        lx = float(gx) * self.__BanWidth / self.__W
+        ly = float(gy) * self.__BanHeight / self.__H
 
         if lx < self.__NumWidth or lx >= (self.__BanWidth - self.__FringeSize) :
             return False, 0, 0
@@ -457,27 +457,27 @@ class ViewWidget(QWidget) :
         return True, x, y
 
 
-    ## @brief 格子座標からローカル座標を得る．
-    # @param[in] x, y 格子座標
-    # @return ローカル座標
+    ### @brief 格子座標からローカル座標を得る．
+    ### @param[in] x, y 格子座標
+    ### @return ローカル座標
     def xy_to_local(self, x, y) :
         lx = x * self.__GridSize + self.__NumWidth
         ly = y * self.__GridSize + self.__NumHeight
         return lx, ly
 
 
-    ## @brief 格子座標からインデックスを得る．
-    # @param[in] x, y 格子座標
-    # @return インデックス
+    ### @brief 格子座標からインデックスを得る．
+    ### @param[in] x, y 格子座標
+    ### @return インデックス
     def xy_to_index(self, x, y) :
         assert x >= 0 and x < self.__Width
         assert y >= 0 and y < self.__Height
-        return x * self._Height + y
+        return x * self.__Height + y
 
 
-    ## @brief インデックスから格子座標を得る．
-    # @param[in] index インデックス
-    # @return 格子座標
+    ### @brief インデックスから格子座標を得る．
+    ### @param[in] index インデックス
+    ### @return 格子座標
     def index_to_xy(self, index) :
         assert index >= 0 and index < (self.__Width * self.__Height)
         x = index // self.__Height

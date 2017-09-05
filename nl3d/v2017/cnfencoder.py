@@ -10,7 +10,7 @@
 import math
 from nl3d.point import Point
 from nl3d.v2017.graph import Graph
-from nl3d.v2017.router import Router
+from nl3d.router import Router
 from nl3d.solution import Solution
 from pym_sat import Solver, VarId, Literal, Bool3
 

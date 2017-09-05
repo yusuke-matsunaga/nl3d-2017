@@ -220,7 +220,7 @@ class Node :
 ### 以下のメンバを持つ．
 ### - ID番号
 ### - 両端の節点(__node1, __node2)
-class NlEdge :
+class Edge :
 
     ### @brief 初期化
     ### @param[in] id ID番号

@@ -7,11 +7,11 @@
 # Copyright (C) 2017 Yusuke Matsunaga
 # All rights reserved.
 
-from nl3d.nlgraph import NlNode, NlEdge, NlGraph
-from nl3d.nlcnfencoder import NlCnfEncoder
-from nl3d.nlsolution import NlSolution
-from nl3d.sat.satsolver import SatSolver
-from nl3d.sat.satbool3 import SatBool3
+from nl3d.v2016.graph import Node, Edge, Graph
+from nl3d.v2016.cnfencoder import CnfEncoder
+from nl3d.solution import Solution
+from pym_sat import Solver, VarId, Literal, Bool3
+
 
 ## @brief 問題を表すCNF式を生成する．
 # @param[in] graph 問題を表すグラフ(NlGraph)

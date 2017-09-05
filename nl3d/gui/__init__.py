@@ -7,5 +7,5 @@
 # Copyright (C) 2017 Yusuke Matsunaga
 # All rights reserved.
 
-from nl3d.gui.viewmgr import ViewMgr
 from nl3d.gui.viewwidget import ViewWidget
+from nl3d.gui.viewmgr import ViewMgr
