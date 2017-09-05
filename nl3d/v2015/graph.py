@@ -8,7 +8,6 @@
 ### All rights reserved.
 
 from nl3d.point import Point
-from nl3d.via import Via
 from nl3d.problem import Problem
 
 
