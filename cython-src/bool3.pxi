@@ -1,24 +1,24 @@
-# @file bool3.pxi
-# @brief bool3 の python インターフェイス
-# @author Yusuke Matsunaga (松永 裕介)
-#
-# Copyright (C) 2017 Yusuke Matsunaga
-# All rights reserved.
+### @file bool3.pxi
+### @brief bool3 の python インターフェイス
+### @author Yusuke Matsunaga (松永 裕介)
+###
+### Copyright (C) 2017 Yusuke Matsunaga
+### All rights reserved.
 
 from enum import Enum
 from CXX_SatBool3 cimport SatBool3, kB3X, kB3True, kB3False
 
-# @brief SatBool3 の Python バージョン
-#
-# もとの C++ の列挙型とは別に Python の拡張型として
-# 定義する．
-# 相互の変換関数を用意することでシームレスに使えるようにする．
+### @brief SatBool3 の Python バージョン
+###
+### もとの C++ の列挙型とは別に Python の拡張型として
+### 定義する．
+### 相互の変換関数を用意することでシームレスに使えるようにする．
 class Bool3(Enum) :
     UNKNOWN = 0
     TRUE    = 1
     FALSE   = 2
 
-    # @brief 否定する．
+    ### @brief 否定する．
     def negate(self) :
         if self == Bool3.TRUE :
             return Bool3.FALSE
@@ -29,7 +29,11 @@ class Bool3(Enum) :
         else :
             assert False
 
-    # @brief 文字列表現を返す．
+    ### @brief 否定演算子(~)
+    def __invert__(self) :
+        return self.negate()
+
+    ### @brief 文字列表現を返す．
     def __repr__(self) :
         if self == Bool3.UNKNOWN :
             return 'UNKNOWN'
@@ -41,7 +45,8 @@ class Bool3(Enum) :
             assert False
 
 
-# @brief Python の Bool3 を C++ の SatBool3 に変換する．
+### @brief Python の Bool3 を C++ の SatBool3 に変換する．
+### @param[in] val Python バージョンの Bool3
 cdef SatBool3 from_bool3(val) :
     if val == Bool3.UNKOWN :
         return kB3X
@@ -53,7 +58,8 @@ cdef SatBool3 from_bool3(val) :
         assert False
 
 
-# @brief C++ の SatBool3 を Python の Bool3 に変換する．
+### @brief C++ の SatBool3 を Python の Bool3 に変換する．
+### @param[in] c_val C++ バージョンの SatBool3
 def to_bool3(SatBool3 c_val) :
     if c_val == kB3X :
         return Bool3.UNKOWN

@@ -23,6 +23,8 @@ cdef extern from "ym/SatSolver.h" namespace "nsYm" :
     cdef cppclass SatSolver :
         SatSolver(string sat_type, string sat_opt)
         SatVarId new_variable(bool decision)
+        void set_conditional_literals(vector[SatLiteral]& lits)
+        void clear_conditional_literals()
         void add_clause(vector[SatLiteral]& lits)
         void add_eq_rel(SatLiteral lit1, SatLiteral lit2)
         void add_neq_rel(SatLiteral lit1, SatLiteral lit2)
@@ -38,6 +40,9 @@ cdef extern from "ym/SatSolver.h" namespace "nsYm" :
         void add_at_least_one(vector[SatLiteral]& lits)
         void add_at_least_two(vector[SatLiteral]& lits)
         void add_at_least_k(vector[SatLiteral]& lits, unsigned int k)
+        void add_exact_one(vector[SatLiteral]& lits)
+        void add_exact_two(vector[SatLiteral]& lits)
+        void add_exact_k(vector[SatLiteral]& lits, unsigned int k)
         void add_not_one(vector[SatLiteral]& lits)
         SatBool3 solve(vector[SatBool3]& model)
         SatBool3 solve(vector[SatLiteral]& assumptions, vector[SatBool3]& model)
