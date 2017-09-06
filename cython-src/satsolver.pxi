@@ -315,7 +315,7 @@ cdef class SatSolver :
         if stat == Bool3.TRUE :
             model = make_model(c_model)
         else :
-            mode = None
+            model = None
         return stat, model
 
     ### @brief assumption 付きの問題を解く．
@@ -339,7 +339,7 @@ cdef class SatSolver :
         if stat == Bool3.TRUE :
             model = make_model(c_model)
         else :
-            mode = None
+            model = None
         return stat, model
 
     ### @brief solve() を中止する．
