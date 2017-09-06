@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### @file v2016/graph.py
+### @file graph.py
 ### @brief Graph の定義ファイル
 ### @author Yusuke Matsunaga (松永 裕介)
 ###
@@ -8,8 +8,8 @@
 ### All rights reserved.
 
 from nl3d.point import Point
-from nl3d.via import Via
 from nl3d.problem import Problem
+from nl3d.via import Via
 
 
 ### @brief 節点を表すクラス
@@ -18,7 +18,7 @@ from nl3d.problem import Problem
 ### - ID番号
 ### - 位置(__point)
 ### - 接続している枝のリスト(__edge_list)
-### - 各方向の枝(__x1_edge, __x2_edge, __y1_edge, __y2_edge)
+### - 各方向の枝(__x1_edge, __x2_edge, __y1_edge, __y2_edge, __z1__edge, __z2_edge)
 ### - 終端の時に True となるフラグ(__is_terminal)
 ### - 終端の時の線分番号(__terminal_id)
 ### - ビアの時に True となるフラグ(__is_via)
@@ -38,6 +38,8 @@ class Node :
         self.__x2_edge = None
         self.__y1_edge = None
         self.__y2_edge = None
+        self.__z1_edge = None
+        self.__z2_edge = None
         self.__is_terminal = False
         self.__terminal_id = None
         self.__is_via = False
@@ -64,6 +66,8 @@ class Node :
     ### - 1: 左(x2)
     ### - 2: 上(y1)
     ### - 3: 下(y2)
+    ### - 4:   (z1)
+    ### - 5:   (z2)
     def add_edge(self, edge, dir_id) :
         self.__edge_list.append(edge)
         if dir_id == 0 :
@@ -74,6 +78,10 @@ class Node :
             self.__y1_edge = edge
         elif dir_id == 3 :
             self.__y2_edge = edge
+        elif dir_id == 4 :
+            self.__z1_edge = edge
+        elif dir_id == 5 :
+            self.__z2_edge = edge
         else :
             assert False
 
@@ -117,6 +125,8 @@ class Node :
     ### - 1: 左(x2)
     ### - 2: 上(y1)
     ### - 3: 下(y2)
+    ### - 4:   (z1)
+    ### - 5:   (z2)
     def edge(self, dir_id) :
         if dir_id == 0 :
             return self.__x1_edge
@@ -126,6 +136,10 @@ class Node :
             return self.__y1_edge
         elif dir_id == 3 :
             return self.__y2_edge
+        elif dir_id == 4 :
+            return self.__z1_edge
+        elif dir_id == 5 :
+            return self.__z2_edge
         else :
             assert False
 
@@ -157,6 +171,20 @@ class Node :
     def y2_edge(self) :
         return self.__y2_edge
 
+    ### @brief z1方向の枝
+    ###
+    ### なければ None を返す．
+    @property
+    def z1_edge(self) :
+        return self.__z1_edge
+
+    ### @brief z2方向の枝
+    ###
+    ### なければ None を返す．
+    @property
+    def z2_edge(self) :
+        return self.__z2_edge
+
     ### @brief 隣接するノードを返す．
     ### @param[in] dir_id 方向
     ###
@@ -165,6 +193,8 @@ class Node :
     ### - 1: 左(x2)
     ### - 2: 上(y1)
     ### - 3: 下(y2)
+    ### - 4:   (z1)
+    ### - 5:   (z2)
     def adj_node(self, dir_id) :
         edge = self.edge(dir_id)
         if edge == None :
@@ -204,7 +234,7 @@ class Node :
 
     ### @brief 内容を表す文字列を返す．
     def str(self) :
-        ans = '#{}: ({}, {}, {})'.format(self.id, self.x, self.y, self.z)
+        ans = '#{:04d}: {}'.format(self.id, self.point)
 
         if self.is_terminal :
             ans += ' [Net#{}]'.format(self.terminal_id)
@@ -213,6 +243,23 @@ class Node :
             ans += ' [Via#{}]'.format(self.via_id)
 
         return ans
+
+    ### @brief デバッグ用の出力
+    def dump(self) :
+        print(self.str(), end='')
+        if self.x1_edge :
+            print(' x1: #{:04d}'.format(self.x1_edge.id), end='')
+        if self.x2_edge :
+            print(' x2: #{:04d}'.format(self.x2_edge.id), end='')
+        if self.y1_edge :
+            print(' y1: #{:04d}'.format(self.y1_edge.id), end='')
+        if self.y2_edge :
+            print(' y2: #{:04d}'.format(self.y2_edge.id), end='')
+        if self.z1_edge :
+            print(' z1: #{:04d}'.format(self.z1_edge.id), end='')
+        if self.z2_edge :
+            print(' z2: #{:04d}'.format(self.z2_edge.id), end='')
+        print('')
 
 
 ### @brief 枝を表すクラス
@@ -246,6 +293,7 @@ class Edge :
         return self.__node2
 
     ### @brief 反対側のノードを返す．
+    ### @param[in] node 自分のノード
     def alt_node(self, node) :
         if node == self.__node1 :
             return self.__node2
@@ -258,8 +306,19 @@ class Edge :
     def str(self) :
         return '#{}: {} - {}'.format(self.id, self.node1.str(), self.node2.str())
 
+    ### @brief デバッグ用の出力
+    def dump(self) :
+        print(self.str())
 
-### @brief ナンバーリンクの問題を表すグラフ(ADC2016バージョン)
+
+### @brief ナンバーリンクの問題を表すグラフ
+###
+### ADC2015, ADC2016, ADC207 共用
+### * ADC2015 は単層なので Z 軸方向の枝がない．
+### * ADC2016 は多層だがビアを持つので Z軸方向の枝がない．
+### * ADC2017 は多層でかつZ軸方向の枝を持つ．
+###
+### ちなみに単相の問題は全てのバージョンで同一となる．
 class Graph :
 
     ### @brief 初期化
@@ -270,43 +329,50 @@ class Graph :
     ### @brief 問題を設定する．
     ### @param[in] problem 問題を表すオブジェクト(Problem)
     def set_problem(self, problem) :
-        self.__dim = problem.dimension
-        self._net_num = problem.net_num
-        self._via_num = problem.via_num
+        dimension = problem.dimension
+        self.__dim = dimension
+        self.__net_num = problem.net_num
+        self.__via_num = problem.via_num
 
         # 節点を作る．
-        # node_array[x][y][z] に (x, y, z) の節点が入る．
+        # node_array[index] に (x, y, z) の節点が入る．
+        # ただし index = dimension.xyz_to_index(x, y, z)
         # Python 特有の内包表記で one-liner で書けるけど1行が長すぎ．
-        self.__node_list = []
-        self.__node_array = [[[self.__new_node(x, y, z)
-                               for z in range(0, self.depth)] \
-                              for y in range(0, self.height)] \
-                             for x in range(0, self.width)]
+        self.__node_array = [self.__new_node(index) for index in range(0, dimension.grid_size)]
 
         # 枝を作る．
         self.__edge_list = []
         for z in range(0, self.depth) :
-            # 水平の枝を作る．
+            # x方向の枝を作る．
             for x in range(0, self.width - 1) :
                 for y in range(0, self.height) :
-                    # (x, y) - (x + 1, y) を結ぶ枝
-                    node1 = self.__node_array[x + 0][y][z]
-                    node2 = self.__node_array[x + 1][y][z]
-                    self.__new_edge(node1, node2, True)
+                    # (x, y, z) - (x + 1, y, z) を結ぶ枝
+                    node1 = self.node(x    , y, z)
+                    node2 = self.node(x + 1, y, z)
+                    self.__new_edge(node1, node2, 0)
 
-            # 垂直の枝を作る．
+            # y方向の枝を作る．
             for x in range(0, self.width) :
                 for y in range(0, self.height - 1) :
-                    # (x, y) - (x, y + 1) を結ぶ枝
-                    node1 = self.__node_array[x][y + 0][z]
-                    node2 = self.__node_array[x][y + 1][z]
-                    self.__new_edge(node1, node2, False)
+                    # (x, y, z) - (x, y + 1, z) を結ぶ枝
+                    node1 = self.node(x, y    , z)
+                    node2 = self.node(x, y + 1, z)
+                    self.__new_edge(node1, node2, 1)
+
+        # z 方向の枝を作る．
+        for x in range(0, self.width) :
+            for y in range(0, self.height) :
+                for z in range(0, self.depth - 1) :
+                    # (x, y, z) - (x, y, z + 1) を結ぶ枝
+                    node1 = self.node(x, y, z    )
+                    node2 = self.node(x, y, z + 1)
+                    self.__new_edge(node1, node2, 2)
 
         # 端子の印をつける．
         self.__terminal_node_pair_list = []
         for net_id, (label, s, e) in enumerate(problem.net_list()) :
-            node1 = self.__node_array[s.x][s.y][s.z]
-            node2 = self.__node_array[e.x][e.y][e.z]
+            node1 = self.node(s.x, s.y, s.z)
+            node2 = self.node(e.x, e.y, e.z)
             node1.set_terminal(net_id)
             node2.set_terminal(net_id)
             self.__terminal_node_pair_list.append((node1, node2))
@@ -338,6 +404,11 @@ class Graph :
                     self.__net_via_list[net_id].append(via_id)
             self.__via_net_list[via_id] = net_list
 
+    ### @brief 問題のサイズ
+    @property
+    def dimension(self) :
+        return self.__dim
+
     ### @brief 問題の幅
     @property
     def width(self) :
@@ -366,7 +437,7 @@ class Graph :
     ### @brief ノードのリスト
     @property
     def node_list(self) :
-        return self.__node_list
+        return self.__node_array
 
     ### @brief 枝のリスト
     @property
@@ -396,44 +467,45 @@ class Graph :
     ### @brief 座標を指定して対応するノードを返す．
     ### @param[in] x, y, z 座標
     def node(self, x, y, z) :
-        return self.__node_array[x][y][z]
+        index = self.__dim.xyz_to_index(x, y, z)
+        return self.__node_array[index]
+
+    ### @brief 位置(Point) から対応するノードを返す．
+    ### @param[in] point 位置(Point)
+    def node_from_point(self, point) :
+        index = self.__dim.point_to_index(point)
+        return self.__node_array[index]
 
     ### @brief 枝を作る．
     ### @param[in] node1, node2 両端の節点
-    ### @param[in] horizontal 水平方向の枝のとき True にする．
-    def __new_edge(self, node1, node2, horizontal) :
+    ### @param[in] dir_base 方向を表す数字
+    ###
+    ### dir_base の意味は以下の通り
+    ### - 0: x 方向
+    ### - 1: y 方向
+    ### - 2: z 方向
+    def __new_edge(self, node1, node2, dir_base) :
         id = len(self.__edge_list)
         edge = Edge(id, node1, node2)
         self.__edge_list.append(edge)
-        if horizontal :
-            dir1 = 0
-            dir2 = 1
-        else :
-            dir1 = 2
-            dir2 = 3
-        node1.add_edge(edge, dir1)
-        node2.add_edge(edge, dir2)
+        dir1 = dir_base * 2 + 0
+        dir2 = dir_base * 2 + 1
+        node1.add_edge(edge, dir2)
+        node2.add_edge(edge, dir1)
 
     ### @brief ノードを作る．
-    ### @param[in] x, y, z 座標
-    ###
-    ### 結果を self._node_list に入れる．
-    def __new_node(self, x, y, z) :
-        id = len(self.__node_list)
-        node = Node(id, x, y, z)
-        self.__node_list.append(node)
-
-        return node
+    ### @param[in] index インデックス番号
+    def __new_node(self, index) :
+        point = self.__dim.index_to_point(index)
+        return Node(index, point)
 
     ### @brief 内容を出力する．
     def dump(self) :
         print('Nodes:')
-        for node in self.__node_list :
-            print(node.str())
+        for node in self.__node_array :
+            node.dump()
 
         print('')
         print('Edges:')
         for edge in self.__edge_list :
-            print(edge.str())
-
-# end of graph.py
+            edge.dump()

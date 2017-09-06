@@ -7,19 +7,17 @@
 # Copyright (C) 2017 Yusuke Matsunaga
 # All rights reserved.
 
-from nl3d.v2015.graph import Graph
 from nl3d.v2015.cnfencoder import CnfEncoder
 
 
 ## @brief 問題を表すCNF式を生成する．
-# @param[in] problem 問題(Problem)
+# @param[in] graph 問題を表すグラフ(Graph)
 # @return status, solution のタプルを返す．
 #
 # status は "OK", "NG", "Abort" のいずれか
 # solution は "OK" の時は NlSolution のオブジェクト
 # それ以外は None
-def solve_nlink(problem, var_limit, binary_encoding) :
-    graph = Graph(problem)
+def solve_nlink(graph, var_limit, binary_encoding) :
 
     print('plan_A')
     status, solution = plan_A(graph, var_limit, binary_encoding)

@@ -9,7 +9,6 @@
 
 import math
 from nl3d.point import Point
-from nl3d.v2017.graph import Graph
 from nl3d.router import Router
 from nl3d.solution import Solution
 from pym_sat import SatSolver, VarId, Literal, Bool3
@@ -448,23 +447,24 @@ class CnfEncoder :
             # node が終端の場合
 
             # ただ一つの枝が選ばれる．
-            solver.add_at_most_one(evar_list)
-            solver.add_at_least_one(evar_list)
+            solver.add_exact_one(evar_list)
 
             # 同時にラベルの変数を固定する．
             self.__make_label_constraint(node, node.terminal_id)
         else :
             if no_slack :
                 # 常に２個の枝が選ばれる．
-                solver.add_at_most_two(evar_list)
-                solver.add_at_least_two(evar_list)
+                solver.add_exact_two(evar_list)
             else :
                 # uvar が True の時は2つの枝が選ばれる．
                 # そうでなければ選ばれない．
                 uvar = self.__uvar_list[node.id]
                 solver.add_at_most_two(evar_list)
-                make_conditional_two_hot(solver, uvar, evar_list)
-
+                solver.set_conditional_literals([uvar])
+                solver.add_at_least_two(evar_list)
+                solver.clear_conditional_literals()
+                for evar in evar_list :
+                    solver.add_clause([ uvar, ~evar])
 
     ## @brief 枝の両端のノードのラベルに関する制約を作る．
     # @param[in] edge 対象の枝
@@ -479,8 +479,7 @@ class CnfEncoder :
         for i in range(0, n) :
             var1 = var_list1[i]
             var2 = var_list2[i]
-            solver.add_clause([~evar, ~var1,  var2])
-            solver.add_clause([~evar,  var1, ~var2])
+            solver.add_eq_rel(var1, var2, cvar_list = [evar])
         if self.__binary_encoding :
             pass
         else :
@@ -498,14 +497,14 @@ class CnfEncoder :
         if self.__binary_encoding :
             for i, lvar in enumerate(lvar_list) :
                 if (1 << i) & (net_id + 1) :
-                    tmp_lit = lvar
+                    tmp_lit =  lvar
                 else :
                     tmp_lit = ~lvar
                 self.__solver.add_clause([tmp_lit])
         else :
             for i, lvar in enumerate(lvar_list) :
                 if i == net_id :
-                    tmp_lit = lvar
+                    tmp_lit =  lvar
                 else :
                     tmp_lit = ~lvar
                 self.__solver.add_clause([tmp_lit])
@@ -530,107 +529,5 @@ def lshape_ycheck(graph, x0, y0, z0, dy, ry) :
         if node.is_terminal :
             return True, node.terminal_id
     return False, 0
-
-
-## @brief uvar が True ならリストの中の変数が2個 True になるという制約
-# @param[in] var_list 対象の変数のリスト
-def make_conditional_two_hot(solver, uvar, var_list) :
-    n = len(var_list)
-    # 要素数で場合分け
-    # 基本的には
-    # - 3つ以上の変数が同時に True にならない．
-    # - n - 1 個以上の変数が同時に False にならない．
-    # という条件を組み合わせる．
-    if n == 2 :
-        # uvar と一致する．
-        var0 = var_list[0]
-        var1 = var_list[1]
-        solver.add_clause([~uvar,  var0])
-        solver.add_clause([~uvar,  var1])
-        solver.add_clause([ uvar, ~var0])
-        solver.add_clause([ uvar, ~var1])
-    elif n == 3 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        # uvar が True なら2つ以上の枝が選ばれる．
-        solver.add_clause([~uvar,  var0,  var1       ])
-        solver.add_clause([~uvar,  var0,         var2])
-        solver.add_clause([~uvar,         var1,  var2])
-        # uvar が False なら選ばれない．
-        solver.add_clause([ uvar, ~var0])
-        solver.add_clause([ uvar, ~var1])
-        solver.add_clause([ uvar, ~var2])
-    elif n == 4 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        # uvar が True なら2つ以上の枝が選ばれる．
-        solver.add_clause([~uvar,  var0,  var1,  var2       ])
-        solver.add_clause([~uvar,  var0,  var1,         var3])
-        solver.add_clause([~uvar,  var0,         var2,  var3])
-        solver.add_clause([~uvar,         var1,  var2,  var3])
-        # uvar が False なら選ばれない．
-        solver.add_clause([ uvar, ~var0])
-        solver.add_clause([ uvar, ~var1])
-        solver.add_clause([ uvar, ~var2])
-        solver.add_clause([ uvar, ~var3])
-    elif n == 5 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        var4 = var_list[4]
-        # uvar が True なら2つ以上の枝が選ばれる．
-        solver.add_clause([~uvar,  var0,  var1,  var2,  var3       ])
-        solver.add_clause([~uvar,  var0,  var1,  var2,         var4])
-        solver.add_clause([~uvar,  var0,  var1,         var3,  var4])
-        solver.add_clause([~uvar,  var0,         var2,  var3,  var4])
-        solver.add_clause([~uvar,         var1,  var2,  var3,  var4])
-        # uvar が False なら選ばれない．
-        solver.add_clause([ uvar, ~var0])
-        solver.add_clause([ uvar, ~var1])
-        solver.add_clause([ uvar, ~var2])
-        solver.add_clause([ uvar, ~var3])
-        solver.add_clause([ uvar, ~var4])
-    elif n == 6 :
-        var0 = var_list[0]
-        var1 = var_list[1]
-        var2 = var_list[2]
-        var3 = var_list[3]
-        var4 = var_list[4]
-        var5 = var_list[5]
-        # uvar が True なら2つ以上の枝が選ばれる．
-        solver.add_clause([~uvar,  var0,  var1,  var2,  var3,  var4       ])
-        solver.add_clause([~uvar,  var0,  var1,  var2,  var3,         var5])
-        solver.add_clause([~uvar,  var0,  var1,  var2,         var4,  var5])
-        solver.add_clause([~uvar,  var0,  var1,         var3,  var4,  var5])
-        solver.add_clause([~uvar,  var0,         var2,  var3,  var4,  var5])
-        solver.add_clause([~uvar,         var1,  var2,  var3,  var4,  var5])
-        # uvar が False なら選ばれない．
-        solver.add_clause([ uvar, ~var0])
-        solver.add_clause([ uvar, ~var1])
-        solver.add_clause([ uvar, ~var2])
-        solver.add_clause([ uvar, ~var3])
-        solver.add_clause([ uvar, ~var4])
-        solver.add_clause([ uvar, ~var5])
-    else :
-        assert False
-
-
-## @brief 条件付きで２つの変数リストが等しくなるという制約を作る．
-# @param[in] cvar 条件を表す変数
-# @param[in] var_list1, var_list2 対象の変数リスト
-def make_conditional_equal(solver, cvar, var_list1, var_list2) :
-    n = len(var_list1)
-    for i in range(0, n) :
-        var1 = var_list1[i]
-        var2 = var_list2[i]
-        solver.add_clause([~cvar, ~var1,  var2])
-        solver.add_clause([~cvar,  var1, ~var2])
-        # cvar が False なら var_list1 と var_list2 は等しくない．
-        #solver.add_clause([ cvar, ~var1, ~var2])
-
 
 # end-of-class CnfEncoder

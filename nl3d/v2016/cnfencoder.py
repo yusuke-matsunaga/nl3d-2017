@@ -8,6 +8,7 @@
 ### All rights reserved.
 
 import math
+from nl3d.point import Point
 from nl3d.v2016.graph import Node, Edge, Graph
 from nl3d.solution import Solution
 from pym_sat import SatSolver, VarId, Literal, Bool3
@@ -35,7 +36,7 @@ class CnfEncoder :
         # 枝に対応する変数を作る．
         # 結果は __edge_var_list に格納する．
         # __edge_var_list[edge.id] に edge に対応する変数が入る．
-        self.__edge_var_list = [solver.new_variable() for edge in graph.edge_list]
+        self.__edge_var_list = [Literal(solver.new_variable()) for edge in graph.edge_list]
 
         # 節点のラベルを表す変数のリストを作る．
         # 節点のラベルは log2(nn + 1) 個の変数で表す(binaryエンコーディング)
@@ -98,7 +99,7 @@ class CnfEncoder :
     ### 経路は存在しない．
     def make_ushape_constraint(self) :
         graph = self.__graph
-        solver = self._solver
+        solver = self.__solver
         dir1 = 1
         dir2 = 3
         for node_00 in graph.node_list :
@@ -260,12 +261,12 @@ class CnfEncoder :
                     var_h1 = self._edge_var(edge_h1)
                     var_h2 = self._edge_var(edge_h2)
                     var_h3 = self._edge_var(edge_h3)
-                    solver.add_clause(-var_v1, -var_v2, -var_h1, -var_h2, -var_h3)
+                    solver.add_clause([~var_v1, ~var_v2, ~var_h1, ~var_h2, ~var_h3])
                 if not (node_01.is_block or node_31.is_block) :
                     var_h4 = self._edge_var(edge_h4)
                     var_h5 = self._edge_var(edge_h5)
                     var_h6 = self._edge_var(edge_h6)
-                    solver.add_clause(-var_v1, -var_v2, -var_h4, -var_h5, -var_h6)
+                    solver.add_clause([~var_v1, ~var_v2, ~var_h4, ~var_h5, ~var_h6])
 
     ## @brief 問題を解く．
     ## @return result, solution を返す．
@@ -357,8 +358,7 @@ class CnfEncoder :
             # node が終端の場合
 
             # ただ一つの枝が選ばれる．
-            solver.add_at_most_one(evar_list)
-            solver.add_at_least_one(evar_list)
+            solver.add_exact_one(evar_list)
 
             # 同時にラベルの変数を固定する．
             self.__make_label_constraint(node, node.terminal_id)
@@ -368,27 +368,32 @@ class CnfEncoder :
             via_id = node.via_id
             for net_id in graph.via_net_list(via_id) :
                 cvar = self.__nv_map[net_id][via_id]
+                solver.set_conditional_literals([cvar])
                 node1, node2 = graph.terminal_node_pair(net_id)
                 if node1.z != node.z and node2.z != node.z :
                     # このビアは net_id の線分には使えない．
                     # このノードに接続する枝は選ばれない．
-                    self.__make_conditional_zero_hot(cvar, evar_list)
+                    for evar in evar_list :
+                        solver.add_clause([~evar])
                 else :
                     # このビアを終端と同様に扱う．
-                    self.__make_conditional_one_hot(cvar, evar_list)
+                    solver.add_exact_one(evar_list)
 
                     # ラベルの制約を追加する．
-                    self.__make_conditional_label_constraint(cvar, node, net_id)
+                    self.__make_label_constraint(node, net_id)
+                solver.clear_conditional_literals()
         else :
             if no_slack :
                 # 常に２個の枝が選ばれる．
-                solver.add_at_most_two(evar_list)
-                solver.add_at_least_two(evar_list)
+                solver.add_exact_two(evar_list)
             else :
                 # ０個か２個の枝が選ばれる．
                 uvar = self.__uvar_list[node.id]
                 solver.add_at_most_two(evar_list)
-                make_conditional_two_hot(uvar, evar_list)
+                solver.add_at_least_two(evar_list, cvar_list = [uvar])
+                solver.set_conditional_literals([~uvar])
+                for evar in evar_list :
+                    solver.add_clause([~evar])
 
     ### @brief via_id に関してただ一つの線分が選ばれるという制約を作る．
     def __make_via_net_constraint(self, via_id) :
@@ -398,8 +403,7 @@ class CnfEncoder :
 
         # この変数に対する one-hot 制約を作る．
         solver = self.__solver
-        solver.add_at_most_one(vars_list)
-        solver.add_at_least_one(vars_list)
+        solver.add_exact_one(vars_list)
 
     ### @brief net_id に関してただ一つのビアが選ばれるという制約を作る．
     def __make_net_via_constraint(self, net_id) :
@@ -409,28 +413,30 @@ class CnfEncoder :
 
         # この変数に対する one-hot 制約を作る．
         solver = self.__solver
-        solver.add_at_most_one(vars_list)
-        solver.add_at_least_one(vars_list)
+        solver.add_exact_one(vars_list)
 
     ### @brief 枝の両端のノードのラベルに関する制約を作る．
     ### @param[in] edge 対象の枝
     ###
     ### 具体的にはその枝が選ばれているとき両端のノードのラベルは等しい
     def __make_adj_nodes_constraint(self, edge) :
+        solver = self.__solver
         evar = self.__edge_var_list[edge.id]
+        solver.set_conditional_literals([evar])
         nvar_list1 = self.__node_vars_list[edge.node1.id]
         nvar_list2 = self.__node_vars_list[edge.node2.id]
         n = len(nvar_list1)
         for i in range(0, n) :
             nvar1 = nvar_list1[i]
             nvar2 = nvar_list2[i]
-            self._make_conditional_equal(evar, nvar1, nvar2)
+            solver.add_eq_rel(nvar1, nvar2)
+        solver.clear_conditional_literals()
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
     # @param[in] net_id 固定する線分番号
     def __make_label_constraint(self, node, net_id) :
-        solver = self.__solve
+        solver = self.__solver
         lvar_list = self.__node_vars_list[node.id]
         for i, lvar in enumerate(lvar_list) :
             if (1 << i) & (net_id + 1) :
@@ -438,108 +444,9 @@ class CnfEncoder :
             else :
                 solver.add_clause([~lvar])
 
-    ## @brief 条件付きでラベル値を固定する制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] node 対象のノード
-    # @param[in] net_id 固定する線分番号
-    def __make_conditional_label_constraint(self, cvar, node, net_id) :
-        solver = self.__solve
-        lvar_list = self._node_vars_list[node.id]
-        for i, lvar in enumerate(lvar_list) :
-            if (1 << i) & (net_id + 1) :
-                solver.add_clause([~cvar,  lvar])
-            else :
-                solver.add_clause([~cvar, ~lvar])
-
     ## @brief 枝に対する変数番号を返す．
     # @param[in] edge 対象の枝
     def __edge_var(self, edge) :
         return self.__edge_var_list[edge.id]
-
-    ## @brief 条件付きでリストの中の変数がすべて False となる制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var_list 対象の変数のリスト
-    def __make_conditional_zero_hot(self, cvar, var_list) :
-        solver = self.__solver
-        for var in var_list :
-            solver.add_clause([~cvar, ~var])
-
-    ## @brief 条件付きでリストの中の変数が1つだけ True となる制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var_list 対象の変数のリスト
-    def __make_conditional_one_hot(self, cvar, var_list) :
-        solver = self._solver
-        n = len(var_list)
-        # 要素数で場合分け
-        if n == 2 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            solver.add_clause(-cvar, -var0, -var1)
-            solver.add_clause(-cvar,  var0,  var1)
-        elif n == 3 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            solver.add_clause(-cvar, -var0, -var1       )
-            solver.add_clause(-cvar, -var0,        -var2)
-            solver.add_clause(-cvar,        -var1, -var2)
-            solver.add_clause(-cvar,  var0,  var1,  var2)
-        elif n == 4 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            var3 = var_list[3]
-            solver.add_clause(-cvar, -var0, -var1              )
-            solver.add_clause(-cvar, -var0,        -var2       )
-            solver.add_clause(-cvar, -var0,               -var3)
-            solver.add_clause(-cvar,        -var1, -var2       )
-            solver.add_clause(-cvar,        -var1,        -var3)
-            solver.add_clause(-cvar,               -var2, -var3)
-            solver.add_clause(-cvar,  var0,  var1,  var2,  var3)
-        else :
-            assert False
-
-    ## @brief リストの中の変数が0個か2個 True になるという制約
-    # @param[in] var_list 対象の変数のリスト
-    def _make_zero_or_two_hot(self, var_list) :
-        solver = self._solver
-        n = len(var_list)
-        # 要素数で場合分け
-        if n == 2 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            solver.add_clause( var0, -var1)
-            solver.add_clause(-var0,  var1)
-        elif n == 3 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            solver.add_clause(-var0, -var1, -var2)
-            solver.add_clause( var0,  var1, -var2)
-            solver.add_clause( var0, -var1,  var2)
-            solver.add_clause(-var0,  var1,  var2)
-        elif n == 4 :
-            var0 = var_list[0]
-            var1 = var_list[1]
-            var2 = var_list[2]
-            var3 = var_list[3]
-            solver.add_clause(-var0, -var1, -var2       )
-            solver.add_clause(-var0, -var1,        -var3)
-            solver.add_clause(-var0,        -var2, -var3)
-            solver.add_clause(       -var1, -var2, -var3)
-            solver.add_clause( var0,  var1,  var2, -var3)
-            solver.add_clause( var0,  var1, -var2,  var3)
-            solver.add_clause( var0, -var1,  var2,  var3)
-            solver.add_clause(-var0,  var1,  var2,  var3)
-        else :
-            assert False
-
-    ## @brief 条件付きで２つの変数が等しくなるという制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var1, var2 対象の変数
-    def _make_conditional_equal(self, cvar, var1, var2) :
-        solver = self._solver
-        solver.add_clause(-cvar, -var1,  var2)
-        solver.add_clause(-cvar,  var1, -var2)
 
 # end-of-class NlCnfEncoder

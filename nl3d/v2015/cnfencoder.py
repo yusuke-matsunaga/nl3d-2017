@@ -331,27 +331,27 @@ class CnfEncoder :
             # node が終端の場合
 
             # ただ一つの枝が選ばれる．
-            solver.add_at_most_one(evar_list)
-            solver.add_at_least_one(evar_list)
+            solver.add_exact_one(evar_list)
 
             # 同時にラベルの変数を固定する．
             self.__make_label_constraint(node, node.terminal_id)
         else :
             if no_slack :
                 # 常に２個の枝が選ばれる．
-                solver.add_at_most_two(evar_list)
-                solver.add_at_least_two(evar_list)
+                solver.add_exact_two(evar_list)
             else :
                 # ０個か２個の枝が選ばれる．
                 uvar = self.__uvar_list[node.id]
-                solver.add_at_most_two(evar_list)
-                make_conditional_two_hot(uvar, evar_list)
+                solver.add_at_most_two(evar_list, cvar_list = [uvar])
+                for evar in evar_list :
+                    solver.add_clause([ uvar, ~evar])
 
     ### @brief 枝の両端のノードのラベルに関する制約を作る．
     ### @param[in] edge 対象の枝
     ###
     ### 具体的にはその枝が選ばれているとき両端のノードのラベルは等しい
     def __make_adj_nodes_constraint(self, edge) :
+        solver = self.__solver
         evar = self.__edge_var_list[edge.id]
         nvar_list1 = self.__node_vars_list[edge.node1.id]
         nvar_list2 = self.__node_vars_list[edge.node2.id]
@@ -359,7 +359,7 @@ class CnfEncoder :
         for i in range(0, n) :
             nvar1 = nvar_list1[i]
             nvar2 = nvar_list2[i]
-            self.__make_conditional_equal(evar, nvar1, nvar2)
+            solver.add_eq_rel(nvar1, nvar2, cvar_list = [evar])
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
@@ -373,30 +373,9 @@ class CnfEncoder :
             else :
                 solver.add_clause([~lvar])
 
-    ## @brief 条件付きでラベル値を固定する制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] node 対象のノード
-    # @param[in] net_id 固定する線分番号
-    def __make_conditional_label_constraint(self, cvar, node, net_id) :
-        solver = self.__solve
-        lvar_list = self._node_vars_list[node.id]
-        for i, lvar in enumerate(lvar_list) :
-            if (1 << i) & (net_id + 1) :
-                solver.add_clause([~cvar,  lvar])
-            else :
-                solver.add_clause([~cvar, ~lvar])
-
     ## @brief 枝に対する変数番号を返す．
     # @param[in] edge 対象の枝
     def __edge_var(self, edge) :
         return self.__edge_var_list[edge.id]
-
-    ## @brief 条件付きで２つの変数が等しくなるという制約を作る．
-    # @param[in] cvar 条件を表す変数
-    # @param[in] var1, var2 対象の変数
-    def __make_conditional_equal(self, cvar, var1, var2) :
-        solver = self.__solver
-        solver.add_clause([~cvar, ~var1,  var2])
-        solver.add_clause([~cvar,  var1, ~var2])
 
 # end-of-class CnfEncoder

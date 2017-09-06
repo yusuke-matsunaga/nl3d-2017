@@ -60,15 +60,17 @@ with open(ifile, 'r') as fin :
         print('# of nets: {}'.format(problem.net_num))
         print('# of vias: {}'.format(problem.via_num))
 
+    graph = nl3d.Graph(problem)
+
     if problem.depth == 1 :
         # ADC2015 フォーマット
-        status, solution = nl3d.v2015.solve_nlink(problem, var_limit, binary_encoding)
+        status, solution = nl3d.v2015.solve_nlink(graph, var_limit, binary_encoding)
     elif problem.via_num > 0 :
         # ADC2016 フォーマット
-        status, solution = nl3d.v2016.solve_nlink(problem, var_limit, binary_encoding)
+        status, solution = nl3d.v2016.solve_nlink(graph, var_limit, binary_encoding)
     else :
         # ADC2017 フォーマット
-        status, solution = nl3d.v2017.solve_nlink(problem, var_limit, binary_encoding)
+        status, solution = nl3d.v2017.solve_nlink(graph, var_limit, binary_encoding)
 
     print(status)
     if status == 'OK' and ofile :

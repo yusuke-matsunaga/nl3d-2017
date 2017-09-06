@@ -46,6 +46,14 @@ class Dimension :
     def grid_size(self) :
         return self.__width * self.__height * self.__depth
 
+    ### @brief 全グリッドの位置を返すジェネレータ
+    @property
+    def point_list(self) :
+        for x in range(0, self.__width) :
+            for y in range(0, self.__height) :
+                for z in range(0, self.__depth) :
+                    yield Point(x, y, z)
+
     ### @brief 座標をインデックスに変換する．
     ### @param[in] x, y, z 座標
     ### @return インデックスを返す．

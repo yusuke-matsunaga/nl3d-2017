@@ -7,5 +7,4 @@
 # Copyright (C) 2017 Yusuke Matsunaga
 # All rights reserved.
 
-from nl3d.v2016.graph import Graph
 from nl3d.v2016.solve_nlink import solve_nlink
