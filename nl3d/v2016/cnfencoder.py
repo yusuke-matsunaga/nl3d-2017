@@ -9,8 +9,7 @@
 
 import math
 from nl3d.point import Point
-from nl3d.v2016.graph import Node, Edge, Graph
-from nl3d.solution import Solution
+from nl3d.router import Router
 from pym_sat import SatSolver, VarId, Literal, Bool3
 
 
@@ -305,7 +304,7 @@ class CnfEncoder :
         node = start
         route = []
         while True :
-            route.append(Point(node.x, node.y, node.z))
+            route.append(node.point)
             if node == end :
                 break
 
@@ -325,11 +324,13 @@ class CnfEncoder :
                 assert node.is_via
                 assert start.z != end.z
                 if start.z < end.z :
-                    for i in range(start.z, end.z) :
-                        route.append(Point(node.x, node.y, i + 1))
+                    x0 = node.x
+                    y0 = node.y
+                    for z in range(start.z, end.z) :
+                        route.append(Point(x0, y0, z))
                 else :
-                    for i in range(start.z, end.z, -1) :
-                        route.append(Point(node.x, node.y, i - 1))
+                    for z in range(start.z, end.z, -1) :
+                        route.append(Point(x0, y0, z))
                 next = self._graph.node(node.x, node.y, end.z)
             assert next != None
             prev = node

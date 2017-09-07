@@ -8,9 +8,7 @@
 ### All rights reserved.
 
 import math
-from nl3d.point import Point
 from nl3d.router import Router
-from nl3d.solution import Solution
 from pym_sat import SatSolver, VarId, Literal, Bool3
 
 
@@ -361,7 +359,7 @@ class CnfEncoder :
         node = start
         route = []
         while True :
-            route.append(Point(node.x, node.y, node.z))
+            route.append(node.point)
             if node == end :
                 break
 
