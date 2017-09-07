@@ -486,6 +486,39 @@ class Graph :
         index = self.__dim.point_to_index(point)
         return self.__node_array[index]
 
+    ### @brief ロの字を形作る４組の枝を列挙する．
+    ###
+    ### node_00 -- edge1 -- node_10
+    ###    |                   |
+    ###    |                   |
+    ###  edge2               edge3
+    ###    |                   |
+    ###    |                   |
+    ### node_01 -- edge4 -- node_11
+    ###
+    ### このような位置関係にある edge1, edge2, edge3, edge4 を
+    ### 列挙するジェネレータを返す．
+    @property
+    def square_edges(self) :
+        dir1 = 1
+        dir2 = 3
+        for node_00 in self.__node_array :
+            edge1 = node_00.edge(dir1)
+            if edge1 == None :
+                continue
+            edge2 = node_00.edge(dir2)
+            if edge2 == None :
+                continue
+            node_10 = edge1.alt_node(node_00)
+            assert node_10 != None
+            node_01 = edge2.alt_node(node_00)
+            assert node_01 != None
+            edge3 = node_10.edge(dir2)
+            assert edge3 != None
+            edge4 = node_01.edge(dir1)
+            assert edge4 != None
+            yield edge1, edge2, edge3, edge4
+
     ### @brief 枝を作る．
     ### @param[in] node1, node2 両端の節点
     ### @param[in] dir_base 方向を表す数字

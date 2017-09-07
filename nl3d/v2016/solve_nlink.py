@@ -19,27 +19,27 @@ from nl3d.v2016.cnfencoder import CnfEncoder
 # それ以外は None
 def solve_nlink(graph, var_limit, binary_encoding) :
 
-    print('plan_A')
+    print('Plan-A(v2016): no slack constraint')
     status, solution = plan_A(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution
 
-    print('plan_B11')
+    print('Plan-B11(v2016): L-shape and Y-shape constrants')
     status, solution = plan_B11(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution
 
-    print('plan_B10')
+    print('Plan-B10(v2016): L-shape constraint')
     status, solution = plan_B10(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution
 
-    print('plan_B01')
+    print('Plan-B01(v2016): Y-shape constraint')
     status, solution = plan_B01(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution
 
-    print('plan_C')
+    print('Plan-C(v2016): no additional constraint')
     status, solution = plan_C(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution

@@ -19,7 +19,7 @@ from nl3d.v2017.cnfencoder import CnfEncoder
 # それ以外は None
 def solve_nlink(graph, var_limit, binary_encoding) :
 
-    print('plan_C')
+    print('plan_C(v2017)')
     status, solution = plan_C(graph, var_limit, binary_encoding)
     if status == 'OK' :
         return status, solution

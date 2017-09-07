@@ -28,7 +28,12 @@ class CnfEncoder :
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
-        nn = graph.net_num
+
+    ### @brief 基本的な制約を作る．
+    ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
+    def make_base_constraint(self, no_slack) :
+        solver = self.__solver
+        graph = self.__graph
 
         # 枝に対応する変数を作る．
         # 結果は edge_var_list に格納する．
@@ -41,6 +46,7 @@ class CnfEncoder :
         # 結果は __node_vars_list に格納する．
         # __node_vars_list[node.id] に node に対応する変数のリストが入る．
         # 実際にはその変数に対応するリテラルを入れる．
+        nn = graph.net_num
         if self.__binary_encoding :
             nn_log2 = math.ceil(math.log2(nn + 1))
             self.__node_vars_list = [[solver.new_variable() for i in range(0, nn_log2)] \
@@ -48,12 +54,6 @@ class CnfEncoder :
         else :
             self.__node_vars_list = [[solver.new_variable() for i in range(0, nn)] \
                                      for node in graph.node_list]
-
-    ### @brief 基本的な制約を作る．
-    ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
-    def make_base_constraint(self, no_slack) :
-        solver = self.__solver
-        graph = self.__graph
 
         if not no_slack :
             # 節点が使われている時 True になる変数を用意する．
@@ -67,6 +67,7 @@ class CnfEncoder :
         for edge in graph.edge_list :
             self.__make_adj_nodes_constraint(edge)
 
+        # U字制約を作る．
         self.make_ushape_constraint()
 
     ### @brief U字(コの字)制約を作る．
@@ -85,40 +86,13 @@ class CnfEncoder :
     ### これを3方向で行う．
     def make_ushape_constraint(self) :
         graph = self.__graph
-        # 変数名は上の図に対応している．
-        for node in graph.node_list :
-            self.__ushape_sub(node, 1, 3)
-            self.__ushape_sub(node, 1, 5)
-            self.__ushape_sub(node, 3, 5)
-
-    ### @brief make_ushape_constraint() の下請け関数
-    def __ushape_sub(self, node_00, dir1, dir2) :
-        edge1 = node_00.edge(dir1)
-        edge2 = node_00.edge(dir2)
-        if edge1 == None or edge2 == None :
-            return
-
-        node_10 = edge1.alt_node(node_00)
-        assert node_10 != None
-
-        node_01 = edge2.alt_node(node_00)
-        assert node_01 != None
-
-        edge3 = node_10.edge(dir2)
-        assert edge3 != None
-
-        edge4 = node_01.edge(dir1)
-        assert edge4 != None
-
-        node_11 = edge3.alt_node(node_10)
-        assert node_11 != None
-
         solver = self.__solver
-        var1 = self.__edge_var(edge1)
-        var2 = self.__edge_var(edge2)
-        var3 = self.__edge_var(edge3)
-        var4 = self.__edge_var(edge4)
-        solver.add_at_most_two([var1, var2, var3, var4])
+        for edge1, edge2, edge3, edge4 in graph.square_edges :
+            var1 = self.edge_var(edge1)
+            var2 = self.edge_var(edge2)
+            var3 = self.edge_var(edge3)
+            var4 = self.edge_var(edge4)
+            solver.add_at_most_two([var1, var2, var3, var4])
 
     ## @brief 2x3マスのコの字経路を禁止する制約を作る．
     #
@@ -172,27 +146,27 @@ class CnfEncoder :
         edge_h4 = node_11.edge(dir1)
 
         solver = self.__solver
-        var1 = self.__edge_var(edge_v1)
-        var4 = self.__edge_var(edge_v2)
+        var1 = self.edge_var(edge_v1)
+        var4 = self.edge_var(edge_v2)
         if not (node_00.is_terminal or node_20.is_terminal) :
-            var2 = self.__edge_var(edge_h1)
-            var3 = self.__edge_var(edge_h2)
+            var2 = self.edge_var(edge_h1)
+            var3 = self.edge_var(edge_h2)
             z1_edge = node_11.z1_edge
             z2_edge = node_11.z2_edge
             if z1_edge == None or z2_edge == None :
                 solver.add_clause([~var1, ~var2, ~var3, ~var4])
             else :
-                cvar1 = self.__edge_var(z1_edge)
+                cvar1 = self.edge_var(z1_edge)
                 solver.add_clause([ cvar1, ~var1, ~var2, ~var3, ~var4])
         if not (node_01.is_terminal or node_21.is_terminal) :
-            var2 = self.__edge_var(edge_h3)
-            var3 = self.__edge_var(edge_h4)
+            var2 = self.edge_var(edge_h3)
+            var3 = self.edge_var(edge_h4)
             z1_edge = node_10.z1_edge
             z2_edge = node_10.z2_edge
             if z1_edge == None or z2_edge == None :
                 solver.add_clause([~var1, ~var2, ~var3, ~var4])
             else :
-                cvar1 = self.__edge_var(z1_edge)
+                cvar1 = self.edge_var(z1_edge)
                 solver.add_clause([ cvar1, ~var1, ~var2, ~var3, ~var4])
 
     ## @brief L字型制約を作る．
@@ -217,31 +191,52 @@ class CnfEncoder :
             if node.x == 0 or node.x == w1 or node.y == 0 or node.y == h1 :
                 # 外周部には制約を設けない．
                 continue
-            self.__lshape_sub(node, 0, 2)
-            self.__lshape_sub(node, 0, 3)
-            self.__lshape_sub(node, 1, 2)
-            self.__lshape_sub(node, 1, 3)
+            self.__lshape_sub(node, -1, -1)
+            self.__lshape_sub(node, -1,  1)
+            self.__lshape_sub(node,  1, -1)
+            self.__lshape_sub(node,  1,  1)
 
-    def __lshape_sub(self, node_00, dir1, dir2) :
+    def __lshape_sub(self, node_00, dx, dy) :
+        dir1 = (1 - dx) // 2
         edge1 = node_00.edge(dir1)
+        if edge1 == None :
+            return
+        dir2 = (1 - dy) // 2
         edge2 = node_00.edge(dir2)
-        if edge1 == None or edge2 == None :
+        if edge2 == None :
             return
 
         graph = self.__graph
+        w = graph.width
+        h = graph.height
         x0 = node_00.x
         y0 = node_00.y
         z0 = node_00.z
-        w = graph.width
-        h = graph.height
-        dx = dir1 * 2 - 1
-        dy = (dir2 - 2) * 2 - 1
         rx = w - x0 if dx > 0 else x0 + 1
         ry = h - y0 if dy > 0 else y0 + 1
 
-        xcheck, xnet_id = lshape_xcheck(graph, x0, y0, z0, dx, rx)
-        ycheck, ynet_id = lshape_ycheck(graph, x0, y0, z0, dy, ry)
+        # X軸方向に端子があるかを調べる．
+        def xcheck(graph, x0, y0, z0, dx, rx) :
+            for i in range(1, rx) :
+                x1 = x0 + i * dx
+                node = graph.node(x1, y0, z0)
+                if node.is_terminal :
+                    return True, node.terminal_id
+            return False, 0
+
+        # Y軸方向に端子があるかを調べる．
+        def ycheck(graph, x0, y0, z0, dy, ry) :
+            for i in range(1, ry) :
+                y1 = y0 + i * dy
+                node = graph.node(x0, y1, z0)
+                if node.is_terminal :
+                    return True, node.terminal_id
+            return False, 0
+
+        xcheck, xnet_id = xcheck(graph, x0, y0, z0, dx, rx)
+        ycheck, ynet_id = ycheck(graph, x0, y0, z0, dy, ry)
         if xcheck and ycheck and (xnet_id == ynet_id) :
+            # X軸方向，Y軸方向ともに同じネット番号の端子がある場合は制約を付けない．
             return
 
         r = rx if rx < ry else ry
@@ -250,10 +245,12 @@ class CnfEncoder :
             y1 = y0 + i * dy
             node = graph.node(x1, y1, z0)
             if node.is_terminal :
+                # 45度方向に端子がある場合にも制約を付けない．
                 return
 
-        evar1 = self.__edge_var(edge1)
-        evar2 = self.__edge_var(edge2)
+        # 上記のスクリーニングで引っかからない場合にはL字制約をつける．
+        evar1 = self.edge_var(edge1)
+        evar2 = self.edge_var(edge2)
         self.__solver.add_clause([~evar1, ~evar2])
 
 
@@ -286,10 +283,10 @@ class CnfEncoder :
         for node in graph.node_list :
             if node.is_terminal :
                 continue
-            self.__yshape_sub(node, 0, 1, 2)
-            self.__yshape_sub(node, 2, 3, 0)
+            self.__yshape_sub(node, 0, 2)
+            self.__yshape_sub(node, 2, 0)
 
-    def __yshape_sub(self, node_10, dir1, dir2, dir3) :
+    def __yshape_sub(self, node_10, dir1, dir3) :
         solver = self.__solver
 
         node_11 = node_10.adj_node(dir3)
@@ -297,29 +294,29 @@ class CnfEncoder :
             return
 
         node_00 = node_10.adj_node(dir1)
-        node_20 = node_10.adj_node(dir2)
+        node_20 = node_10.adj_node(dir1 + 1)
         if node_00 == None or node_20 == None :
             return
 
         edge1 = node_00.edge(dir3)
         edge2 = node_20.edge(dir3)
-        evar1 = self.__edge_var(edge1)
-        evar2 = self.__edge_var(edge2)
+        evar1 = self.edge_var(edge1)
+        evar2 = self.edge_var(edge2)
 
-        uvar0 = self.__uvar_list[node_10.id]
-        edge3 = node_10.edge(dir3 ^ 1)
+        uvar0 = self.node_uvar(node_10)
+        edge3 = node_10.edge(dir3 + 1)
         if edge3 == None :
             solver.add_clause([~evar1, ~evar2, ~uvar0])
         else :
-            evar3 = self.__edge_var(edge3)
+            evar3 = self.edge_var(edge3)
             solver.add_clause([~evar1, ~evar2,  evar3])
 
-        uvar1 = self.__uvar_list[node_11.id]
+        uvar1 = self.node_uvar(node_11)
         edge4 = node_11.edge(dir3)
         if edge4 == None :
             solver.add_clause([~evar1, ~evar2, ~uvar1])
         else :
-            evar4 = self.__edge_var(edge4)
+            evar4 = self.edge_var(edge4)
             solver.add_clause([~evar1, ~evar2,  evar4])
 
     ## @brief 問題を解く．
@@ -366,7 +363,7 @@ class CnfEncoder :
             next = None
             # 未処理かつ選ばれている枝を探す．
             for edge in node.edge_list :
-                elit = self.__edge_var(edge)
+                elit = self.edge_var(edge)
                 evar = elit.varid()
                 if model[evar.val()] != Bool3.TRUE :
                     continue
@@ -403,7 +400,7 @@ class CnfEncoder :
                     if x < w - 1 :
                         edge = node.x2_edge
                         assert edge != None
-                        evar = self.__edge_var(edge)
+                        evar = self.edge_var(edge)
                         if model[evar.varid().val()] == Bool3.TRUE :
                             print(' - ', end='')
                         else :
@@ -415,7 +412,7 @@ class CnfEncoder :
                     node = graph.node(x, y, z)
                     edge = node.y2_edge
                     assert edge != None
-                    evar = self.__edge_var(edge)
+                    evar = self.edge_var(edge)
                     if model[evar.varid().val()] == Bool3.TRUE :
                         print(' |    ', end='')
                     else :
@@ -456,11 +453,9 @@ class CnfEncoder :
             else :
                 # uvar が True の時は2つの枝が選ばれる．
                 # そうでなければ選ばれない．
-                uvar = self.__uvar_list[node.id]
+                uvar = self.node_uvar(node)
                 solver.add_at_most_two(evar_list)
-                solver.set_conditional_literals([uvar])
-                solver.add_at_least_two(evar_list)
-                solver.clear_conditional_literals()
+                solver.add_at_least_two(evar_list, cvar_list = [uvar])
                 for evar in evar_list :
                     solver.add_clause([ uvar, ~evar])
 
@@ -507,25 +502,13 @@ class CnfEncoder :
                     tmp_lit = ~lvar
                 self.__solver.add_clause([tmp_lit])
 
+    ## @brief ノードに対する uvar を返す．
+    def node_uvar(self, node) :
+        return self.__uvar_list[node.id]
+
     ## @brief 枝に対する変数番号を返す．
     # @param[in] edge 対象の枝
-    def __edge_var(self, edge) :
+    def edge_var(self, edge) :
         return self.__edge_var_list[edge.id]
-
-def lshape_xcheck(graph, x0, y0, z0, dx, rx) :
-    for i in range(1, rx) :
-        x1 = x0 + i * dx
-        node = graph.node(x1, y0, z0)
-        if node.is_terminal :
-            return True, node.terminal_id
-    return False, 0
-
-def lshape_ycheck(graph, x0, y0, z0, dy, ry) :
-    for i in range(1, ry) :
-        y1 = y0 + i * dy
-        node = graph.node(x0, y1, z0)
-        if node.is_terminal :
-            return True, node.terminal_id
-    return False, 0
 
 # end-of-class CnfEncoder
