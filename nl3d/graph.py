@@ -333,6 +333,7 @@ class Graph :
         self.__dim = dimension
         self.__net_num = problem.net_num
         self.__via_num = problem.via_num
+        self.__has_via = True if self.__via_num > 0 else False
 
         # 節点を作る．
         # node_array[index] に (x, y, z) の節点が入る．
@@ -359,14 +360,15 @@ class Graph :
                     node2 = self.node(x, y + 1, z)
                     self.__new_edge(node1, node2, 1)
 
-        # z 方向の枝を作る．
-        for x in range(0, self.width) :
-            for y in range(0, self.height) :
-                for z in range(0, self.depth - 1) :
-                    # (x, y, z) - (x, y, z + 1) を結ぶ枝
-                    node1 = self.node(x, y, z    )
-                    node2 = self.node(x, y, z + 1)
-                    self.__new_edge(node1, node2, 2)
+        if not self.__has_via :
+            # z 方向の枝を作る．
+            for x in range(0, self.width) :
+                for y in range(0, self.height) :
+                    for z in range(0, self.depth - 1) :
+                        # (x, y, z) - (x, y, z + 1) を結ぶ枝
+                        node1 = self.node(x, y, z    )
+                        node2 = self.node(x, y, z + 1)
+                        self.__new_edge(node1, node2, 2)
 
         # 端子の印をつける．
         self.__terminal_node_pair_list = []
@@ -377,32 +379,33 @@ class Graph :
             node2.set_terminal(net_id)
             self.__terminal_node_pair_list.append((node1, node2))
 
-        # ビアの印をつける．
-        self.__via_nodes_list = [[] for via_id in range(0, self.via_num)]
-        for via_id, via in enumerate(problem.via_list()) :
-            via_nodes = []
-            for z in range(via.z1, via.z2 - via.z1 + 1) :
-                node = self.__node_array[via.x][via.y][z]
-                node.set_via(via_id)
-                via_nodes.append(node)
-            self.__via_nodes_list[via_id] = via_nodes
+        if self.__has_via :
+            # ビアの印をつける．
+            self.__via_nodes_list = [[] for via_id in range(0, self.via_num)]
+            for via_id, via in enumerate(problem.via_list()) :
+                via_nodes = []
+                for z in range(via.z1, via.z2 - via.z1 + 1) :
+                    node = self.__node_array[via.x][via.y][z]
+                    node.set_via(via_id)
+                    via_nodes.append(node)
+                    self.__via_nodes_list[via_id] = via_nodes
 
-        # ビアを使うことのできるネットを求める．
-        # 条件はネットの２つの終端の層番号をそのビアが含んでいること．
-        # ただし2つの終端の層番号が等しいネットは除外する．
-        # __via_net_list[via_id] に via_id と関係のある線分番号のリストが入る．
-        # __net_via_list[net_id] に net_id と関係のあるビア番号のリストが入る．
-        self.__via_net_list = [[] for via_id in range(0, self.via_num)]
-        self.__net_via_list = [[] for net_id in range(0, self.net_num)]
-        for via_id, via in enumerate(problem.via_list()) :
-            z1 = via.z1
-            z2 = via.z2
-            net_list = []
-            for net_id, (label, s, e) in enumerate(problem.net_list()) :
-                if s.z != e.z and z1 <= s.z <= z2 and z1 <= e.z <= z2 :
-                    net_list.append(net_id)
-                    self.__net_via_list[net_id].append(via_id)
-            self.__via_net_list[via_id] = net_list
+            # ビアを使うことのできるネットを求める．
+            # 条件はネットの２つの終端の層番号をそのビアが含んでいること．
+            # ただし2つの終端の層番号が等しいネットは除外する．
+            # __via_net_list[via_id] に via_id と関係のある線分番号のリストが入る．
+            # __net_via_list[net_id] に net_id と関係のあるビア番号のリストが入る．
+            self.__via_net_list = [[] for via_id in range(0, self.via_num)]
+            self.__net_via_list = [[] for net_id in range(0, self.net_num)]
+            for via_id, via in enumerate(problem.via_list()) :
+                z1 = via.z1
+                z2 = via.z2
+                net_list = []
+                for net_id, (label, s, e) in enumerate(problem.net_list()) :
+                    if s.z != e.z and z1 <= s.z <= z2 and z1 <= e.z <= z2 :
+                        net_list.append(net_id)
+                        self.__net_via_list[net_id].append(via_id)
+                self.__via_net_list[via_id] = net_list
 
     ### @brief 問題のサイズ
     @property
@@ -434,6 +437,11 @@ class Graph :
     def via_num(self) :
         return self.__via_num
 
+    ### @brief ビアを持っている時に True を返す．
+    @property
+    def has_via(self) :
+        return self.__has_via
+
     ### @brief ノードのリスト
     @property
     def node_list(self) :
@@ -451,16 +459,22 @@ class Graph :
 
     ### @brief ネットに関係するビア番号のリストを返す．
     ### @param[in] net_id 線分番号
+    ###
+    ### has_via == True の時のみ意味を持つ．
     def net_via_list(self, net_id) :
         return self.__net_via_list[net_id]
 
     ### @brief ビアのノードリストを返す．
     ### @param[in] via_id ビア番号
+    ###
+    ### has_via == True の時のみ意味を持つ．
     def via_node_list(self, via_id) :
         return self.__via_nodes_list[via_id]
 
     ### @brief ビアに関係する線分番号のリストを返す．
     ### @param[in] via_id ビア番号
+    ###
+    ### has_via == True の時のみ意味を持つ．
     def via_net_list(self, via_id) :
         return self.__via_net_list[via_id]
 
@@ -509,3 +523,5 @@ class Graph :
         print('Edges:')
         for edge in self.__edge_list :
             edge.dump()
+
+# end of graph.py
