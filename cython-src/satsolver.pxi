@@ -37,10 +37,13 @@ cdef class SatSolver :
 
     ### @brief 新しい変数を確保する．
     ### @param[in] decision 決定変数の時に True にする．
+    ### @return その変数に対応するリテラル(Literal)を返す．
+    ###
+    ### * 変数そのもの(VarId)ではないことに注意
     def new_variable(SatSolver self, bool decision = True) :
         cdef SatVarId c_varid = self._this_ptr.new_variable(decision)
         var = VarId(c_varid.val())
-        return var
+        return Literal(var)
 
     ### @brief 条件リテラルを設定する．
     ### @param[in] lit_lits リテラルのリスト

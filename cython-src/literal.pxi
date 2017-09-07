@@ -21,14 +21,12 @@ cdef class Literal :
 
     ### @brief 初期化
     ### @param[in] varid 変数番号
-    ### @param[in] inv 否定フラグ(Trueの時に否定のリテラルを表す)
     def __init__(Literal self, VarId varid, bool inv = False) :
         self.set(varid, inv)
 
     ### @brief 内容をセットする．
     ### @param[in] varid 変数番号
-    ### @param[in] inv 否定フラグ(Trueの時に否定のリテラルを表す)
-    def set(Literal self, VarId varid, bool inv) :
+    def set(Literal self, VarId varid, bool inv = False) :
         cdef unsigned int vid = varid.val()
         cdef unsigned int inv_offset = 0
         if not varid.is_valid() :

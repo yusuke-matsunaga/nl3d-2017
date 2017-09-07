@@ -9,7 +9,7 @@
 
 import math
 from nl3d.router import Router
-from pym_sat import SatSolver, VarId, Literal, Bool3
+from pym_sat import SatSolver, Bool3
 
 
 ### @brief 問題を表すCNF式を生成するクラス
@@ -33,7 +33,7 @@ class CnfEncoder :
         # 枝に対応する変数を作る．
         # 結果は __edge_var_list に格納する．
         # __edge_var_list[edge.id] に edge に対応する変数が入る．
-        self.__edge_var_list = [Literal(solver.new_variable()) for edge in graph.edge_list]
+        self.__edge_var_list = [solver.new_variable() for edge in graph.edge_list]
 
         # 節点のラベルを表す変数のリストを作る．
         # 節点のラベルは log2(nn + 1) 個の変数で表す(binaryエンコーディング)
@@ -41,10 +41,10 @@ class CnfEncoder :
         # _node_vars_list[node.id] に node に対応する変数のリストが入る．
         if self.__binary_encoding :
             nn_log2 = math.ceil(math.log2(nn + 1))
-            self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn_log2)] \
+            self.__node_vars_list = [[solver.new_variable() for i in range(0, nn_log2)] \
                                      for node in graph.node_list]
         else :
-            self.__node_vars_list = [[Literal(solver.new_variable()) for i in range(0, nn)] \
+            self.__node_vars_list = [[solver.new_variable() for i in range(0, nn)] \
                                      for node in graph.node_list]
 
     ### @brief 基本的な制約を作る．
@@ -55,7 +55,7 @@ class CnfEncoder :
 
         if not no_slack :
             # 節点が使われている時 True になる変数を用意する．
-            self.__uvar_list = [Literal(solver.new_variable()) for node in graph.node_list]
+            self.__uvar_list = [solver.new_variable() for node in graph.node_list]
 
         # 各節点に対して隣接する枝の条件を作る．
         for node in graph.node_list :

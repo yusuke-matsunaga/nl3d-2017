@@ -7,10 +7,6 @@
 ### Copyright (C) 2017 Yusuke Matsunaga
 ### All rights reserved.
 
-from nl3d.point import Point
-from nl3d.problem import Problem
-from nl3d.via import Via
-
 
 ### @brief 節点を表すクラス
 ###
