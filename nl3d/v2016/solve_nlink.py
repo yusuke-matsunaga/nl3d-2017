@@ -64,7 +64,7 @@ def plan_A(graph, var_limit, binary_encoding) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B11(graph, var_limit) :
+def plan_B11(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 
@@ -82,7 +82,7 @@ def plan_B11(graph, var_limit) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B10(graph, var_limit) :
+def plan_B10(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 
@@ -99,7 +99,7 @@ def plan_B10(graph, var_limit) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B01(graph, var_limit) :
+def plan_B01(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 

@@ -385,10 +385,10 @@ class Graph :
             for via_id, via in enumerate(problem.via_list()) :
                 via_nodes = []
                 for z in range(via.z1, via.z2 - via.z1 + 1) :
-                    node = self.__node_array[via.x][via.y][z]
+                    node = self.node(via.x, via.y, z)
                     node.set_via(via_id)
                     via_nodes.append(node)
-                    self.__via_nodes_list[via_id] = via_nodes
+                self.__via_nodes_list[via_id] = via_nodes
 
             # ビアを使うことのできるネットを求める．
             # 条件はネットの２つの終端の層番号をそのビアが含んでいること．

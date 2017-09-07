@@ -53,7 +53,7 @@ class ADC_Reader :
     ### @return Problem を返す．
     ###
     ### 読み込んだファイルの内容に誤りがある場合には None を返す．
-    def read_problem(self, fin, format = 'adc2017') :
+    def read_problem(self, fin) :
         self.__problem = Problem()
 
         self.__nerr = 0

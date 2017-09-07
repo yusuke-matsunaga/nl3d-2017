@@ -56,7 +56,7 @@ def plan_A(graph, var_limit, binary_encoding) :
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
     enc.make_base_constraint(True)
-    #enc.make_ushape_constraint()
+
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
@@ -65,7 +65,7 @@ def plan_A(graph, var_limit, binary_encoding) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B11(graph, var_limit) :
+def plan_B11(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 
@@ -75,7 +75,7 @@ def plan_B11(graph, var_limit) :
     enc.make_base_constraint(False)
     enc.make_lshape_constraint()
     enc.make_yshape_constraint()
-    #enc.make_ushape_constraint()
+
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
@@ -84,7 +84,7 @@ def plan_B11(graph, var_limit) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B10(graph, var_limit) :
+def plan_B10(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 
@@ -93,7 +93,7 @@ def plan_B10(graph, var_limit) :
 
     enc.make_base_constraint(False)
     enc.make_lshape_constraint()
-    #enc.make_ushape_constraint()
+
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
@@ -102,7 +102,7 @@ def plan_B10(graph, var_limit) :
 
 
 ## @brief 最も簡単な戦略
-def plan_B01(graph, var_limit) :
+def plan_B01(graph, var_limit, binary_encoding) :
 
     solver_type = 'glueminisat2'
 
@@ -111,7 +111,7 @@ def plan_B01(graph, var_limit) :
 
     enc.make_base_constraint(False)
     enc.make_yshape_constraint()
-    #enc.make_ushape_constraint()
+
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
@@ -128,7 +128,7 @@ def plan_C(graph, var_limit, binary_encoding) :
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
     enc.make_base_constraint(False)
-    #enc.make_ushape_constraint()
+
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 

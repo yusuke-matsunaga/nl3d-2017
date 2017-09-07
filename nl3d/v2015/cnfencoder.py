@@ -353,10 +353,12 @@ class CnfEncoder :
         nvar_list1 = self.__node_vars_list[edge.node1.id]
         nvar_list2 = self.__node_vars_list[edge.node2.id]
         n = len(nvar_list1)
+        solver.set_conditional_literals([evar])
         for i in range(0, n) :
             nvar1 = nvar_list1[i]
             nvar2 = nvar_list2[i]
-            solver.add_eq_rel(nvar1, nvar2, cvar_list = [evar])
+            solver.add_eq_rel(nvar1, nvar2)
+        solver.clear_conditional_literals()
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
