@@ -572,6 +572,15 @@ class CnfEncoder :
             nvar2 = nvar_list2[i]
             solver.add_eq_rel(nvar1, nvar2)
         solver.clear_conditional_literals()
+        if self.__binary_encoding :
+            pass
+        else :
+            solver.set_conditional_literals([~evar])
+            for i in range(0, n) :
+                var1 = nvar_list1[i]
+                var2 = nvar_list2[i]
+                solver.add_clause([~var1, ~var2])
+            solver.clear_conditional_literals()
 
     ## @brief ラベル値を固定する制約を作る．
     # @param[in] node 対象のノード
@@ -579,11 +588,18 @@ class CnfEncoder :
     def __make_label_constraint(self, node, net_id) :
         solver = self.__solver
         lvar_list = self.__node_vars_list[node.id]
-        for i, lvar in enumerate(lvar_list) :
-            if (1 << i) & (net_id + 1) :
-                solver.add_clause([lvar])
-            else :
-                solver.add_clause([~lvar])
+        if self.__binary_encoding :
+            for i, lvar in enumerate(lvar_list) :
+                if (1 << i) & (net_id + 1) :
+                    solver.add_clause([lvar])
+                else :
+                    solver.add_clause([~lvar])
+        else :
+            for i, lvar in enumerate(lvar_list) :
+                if i == net_id :
+                    solver.add_clause([lvar])
+                else :
+                    solver.add_clause([~lvar])
 
     ## @brief ノードに対する uvar を返す．
     def node_uvar(self, node) :
