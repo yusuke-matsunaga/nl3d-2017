@@ -307,6 +307,14 @@ class Edge :
         print(self.str())
 
 
+### @brief デフォルトの形式を推定する．
+def guess_format(problem) :
+    if problem.depth == 1 :
+        return 'adc2015'
+    if problem.via_num > 0 :
+        return 'adc2016'
+    return 'adc2017'
+
 ### @brief ナンバーリンクの問題を表すグラフ
 ###
 ### ADC2015, ADC2016, ADC207 共用
@@ -315,21 +323,37 @@ class Edge :
 ### * ADC2017 は多層でかつZ軸方向の枝を持つ．
 ###
 ### ちなみに単相の問題は全てのバージョンで同一となる．
+### 問題は ADC2016 でビアのない多層問題．
+### これは独立した複数枚の問題を寄せ集めただけなのだが，ADC2017 では
+### すべてが繋がった多層問題となるが，問題ファイルを見ただけでは区別ができない．
+### このときだけ形式を指定する必要がある．
 class Graph :
 
     ### @brief 初期化
     ### @param[in] problem 問題を表すオブジェクト(Problem)
-    def __init__(self, problem) :
-        self.set_problem(problem)
+    ### @param[in] format 問題の形式('adc2015', 'adc2016', 'adc2017')
+    def __init__(self, problem, format = None) :
+        self.set_problem(problem, format)
 
     ### @brief 問題を設定する．
     ### @param[in] problem 問題を表すオブジェクト(Problem)
-    def set_problem(self, problem) :
+    ### @param[in] format 問題の形式('adc2015', 'adc2016', 'adc2017')
+    def set_problem(self, problem, format = None) :
+        if format :
+            assert format == 'adc2015' or format == 'adc2016' or format == 'adc2017'
         dimension = problem.dimension
         self.__dim = dimension
         self.__net_num = problem.net_num
         self.__via_num = problem.via_num
         self.__has_via = True if self.__via_num > 0 else False
+
+        if format is None :
+            format = guess_format(problem)
+        elif (dimension.depth > 1 and format == 'adc2015') or \
+               (problem.via_num > 0 and format == 'adc2017') :
+            format = guess_format(problem)
+            print('Graph.set_problem(): format error: {} is assumed.'.format(format))
+        self.__format = format
 
         # 節点を作る．
         # node_array[index] に (x, y, z) の節点が入る．
@@ -356,7 +380,7 @@ class Graph :
                     node2 = self.node(x, y + 1, z)
                     self.__new_edge(node1, node2, 1)
 
-        if not self.__has_via :
+        if format == 'adc2017' :
             # z 方向の枝を作る．
             for x in range(0, self.width) :
                 for y in range(0, self.height) :
@@ -402,6 +426,11 @@ class Graph :
                         net_list.append(net_id)
                         self.__net_via_list[net_id].append(via_id)
                 self.__via_net_list[via_id] = net_list
+
+    ### @brief 問題の形式
+    @property
+    def format(self) :
+        return self.__format
 
     ### @brief 問題のサイズ
     @property

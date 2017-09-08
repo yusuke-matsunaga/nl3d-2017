@@ -389,7 +389,7 @@ class ADC_Reader :
 
         first_time = True
         z_list = []
-        for m in self.__VIA3D_pos.finditer(self.__cur_line) :
+        for m in VIA3D_pos.finditer(self.__cur_line) :
             x, y, z = m.groups()
             x = int(x)
             y = int(y)
