@@ -399,7 +399,39 @@ class Graph :
             node2.set_terminal(net_id)
             self.__terminal_node_pair_list.append((node1, node2))
 
-        if self.__has_via :
+        if format == 'adc2016' :
+            # 各層ごとに現れるネット番号のリストを作る．
+            self.__terminal_node_pair_list = []
+            self.__multi_net_list = []
+            self.__multi_net_id_map = [-1 for (label, s, e) in problem.net_list()]
+            self.__net_id_list = [[] for z in range(0, self.depth)]
+            for net_id, (label, s, e) in enumerate(problem.net_list()) :
+                node1 = self.node(s.x, s.y, s.z)
+                node2 = self.node(e.x, e.y, e.z)
+                node1.set_terminal(net_id)
+                node2.set_terminal(net_id)
+                self.__terminal_node_pair_list.append((node1, node2))
+                self.__net_id_list[s.z].append(net_id)
+                if s.z != e.z :
+                    multi_net_id = len(self.__multi_net_list)
+                    self.__multi_net_id_map[net_id] = multi_net_id
+                    self.__multi_net_list.append(net_id)
+                    self.__net_id_list[e.z].append(net_id)
+
+            # __net_id_list の最大値がラベル数となる．
+            max_num = 0
+            for z in range(0, self.depth) :
+                num = len(self.__net_id_list[z])
+                if max_num < num :
+                    max_num = num
+            self.__label_num = max_num
+
+            # (ネット番号, 層番号)とラベルの対応付けを行う．
+            self.__label_matrix = [[-1 for z in range(0, self.depth)] for d in range(0, self.net_num)]
+            for z in range(0, self.depth) :
+                for label, net_id in enumerate(self.__net_id_list[z]) :
+                    self.__label_matrix[net_id][z] = label
+
             # ビアの印をつける．
             self.__via_nodes_list = [[] for via_id in range(0, self.via_num)]
             for via_id, via in enumerate(problem.via_list()) :
@@ -482,6 +514,39 @@ class Graph :
     def terminal_node_pair(self, net_id) :
         return self.__terminal_node_pair_list[net_id]
 
+    ### @brief 多層ネット数
+    @property
+    def multi_net_num(self) :
+        return len(self.__multi_net_list)
+
+    ### @brief 多層ネットのネット番号のリスト
+    @property
+    def multi_net_list(self) :
+        return self.__multi_net_list
+
+    ### @brief 線分番号から多層ネット番号を得る．
+    ### @param[in] net_id 線分番号
+    ###
+    ### net_id が多層ネットでない場合には -1 を返す．
+    def multi_net_id(self, net_id) :
+        return self.__multi_net_id_map[net_id]
+
+    ### @brief 線分番号を表すラベル数
+    ###
+    ### 基本的には線分数と同じだが，互いに独立な層にある線分には
+    ### 同じラベルを割り振ることができるので場合によっては少なくなる．
+    @property
+    def label_num(self) :
+        return self.__label_num
+
+    ### @brief 線分番号に対するラベルを返す．
+    ### @param[in] net_id 線分番号
+    ### @param[in] z 層番号
+    ###
+    ### その層にない線分番号の場合には -1 を返す．
+    def label(self, net_id, z) :
+        return self.__label_matrix[net_id][z]
+
     ### @brief ネットに関係するビア番号のリストを返す．
     ### @param[in] net_id 線分番号
     ###
@@ -502,6 +567,11 @@ class Graph :
     ### has_via == True の時のみ意味を持つ．
     def via_net_list(self, via_id) :
         return self.__via_net_list[via_id]
+
+    ### @brief 多層ネット番号とビアの候補対のリスト
+    @property
+    def via_net_pair_list(self) :
+        return self.__via_net_pair_list
 
     ### @brief 座標を指定して対応するノードを返す．
     ### @param[in] x, y, z 座標

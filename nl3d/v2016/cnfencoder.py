@@ -34,9 +34,11 @@ class CnfEncoder :
 
     ### @brief 基本的な制約を作る．
     ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
-    def make_base_constraint(self, no_slack) :
+    def make_base_constraint(self, no_slack, use_uvar) :
         solver = self.__solver
         graph = self.__graph
+
+        self.__use_uvar = use_uvar
 
         # 枝に対応する変数を作る．
         # 結果は __edge_var_list に格納する．
@@ -47,30 +49,32 @@ class CnfEncoder :
         # 節点のラベルは log2(nn + 1) 個の変数で表す(binaryエンコーディング)
         # 結果は node_vars_list に格納する．
         # _node_vars_list[node.id] に node に対応する変数のリストが入る．
-        nn = graph.net_num
+        nl = graph.label_num
         if self.__binary_encoding :
-            nn_log2 = math.ceil(math.log2(nn + 1))
-            self.__node_vars_list = [[solver.new_variable() for i in range(0, nn_log2)] \
+            nl_log2 = math.ceil(math.log2(nl + 1))
+            self.__node_vars_list = [[solver.new_variable() for i in range(0, nl_log2)] \
                                      for node in graph.node_list]
         else :
-            self.__node_vars_list = [[solver.new_variable() for i in range(0, nn)] \
+            self.__node_vars_list = [[solver.new_variable() for i in range(0, nl)] \
                                      for node in graph.node_list]
 
         # ビアと線分の割り当てを表す変数を作る．
         # __nv_map[net_id][via_id] に net_id の線分を via_id のビアに接続する時
         # True となる変数を入れる．
         vn = graph.via_num
+        mn = graph.multi_net_num
+        assert vn == mn
         self.__nv_map = [[solver.new_variable() \
                           for via_id in range(0, vn)] \
-                         for net_id in range(0, nn)]
+                         for multi_net_id in range(0, mn)]
 
-        if not no_slack :
+        if self.__use_uvar :
             # 節点が使われている時 True になる変数を用意する．
             self.__uvar_list = [solver.new_variable() for node in graph.node_list]
 
         # 各節点に対して隣接する枝の条件を作る．
         for node in graph.node_list :
-            self.__make_edge_constraint(node, no_slack)
+            self.__make_edge_constraint(node, no_slack, use_uvar)
 
         # 枝が選択された時にその両端のノードのラベルが等しくなるという制約を作る．
         for edge in graph.edge_list :
@@ -81,8 +85,8 @@ class CnfEncoder :
             self.__make_via_net_constraint(via_id)
 
         # 各線分についてただ一つのビアが割り当てられるという制約を作る．
-        #for net_id in range(0, graph.net_num) :
-        #    self.__make_net_via_constraint(net_id)
+        for net_id in graph.multi_net_list :
+            self.__make_net_via_constraint(net_id)
 
         # U字制約を作る．
         self.make_ushape_constraint()
@@ -386,19 +390,13 @@ class CnfEncoder :
         evar1 = self.edge_var(edge1)
         evar2 = self.edge_var(edge2)
 
-        uvar0 = self.node_uvar(node_10)
         edge3 = node_10.edge(dir3 + 1)
-        if edge3 == None :
-            solver.add_clause([~evar1, ~evar2, ~uvar0])
-        else :
+        if edge3 is not None :
             evar3 = self.edge_var(edge3)
             solver.add_clause([~evar1, ~evar2,  evar3])
 
-        uvar1 = self.node_uvar(node_11)
         edge4 = node_11.edge(dir3)
-        if edge4 == None :
-            solver.add_clause([~evar1, ~evar2, ~uvar1])
-        else :
+        if edge4 is not None :
             evar4 = self.edge_var(edge4)
             solver.add_clause([~evar1, ~evar2,  evar4])
 
@@ -409,7 +407,7 @@ class CnfEncoder :
     ## - solution はナンバーリンクの解
     def solve(self, var_limit) :
         self.__time1 = time.time()
-        print(' CPU time for CNF generating: {}'.format(self.__time1 - self.__time0))
+        print(' CPU time for CNF generating: {:7.2f}s'.format(self.__time1 - self.__time0))
         solver = self.__solver
         print(' # of variables: {}'.format(solver.variable_num()))
         print(' # of clauses:   {}'.format(solver.clause_num()))
@@ -418,6 +416,8 @@ class CnfEncoder :
             print('  variable limit ({}) exceeded'.format(var_limit))
             return 'Abort', None
         stat, model = solver.solve()
+        self.__time2 = time.time()
+        print(' CPU time for SAT solving:    {:7.2f}s'.format(self.__time2 - self.__time1))
         if stat == Bool3.TRUE :
             print('OK')
             verbose = False
@@ -487,7 +487,7 @@ class CnfEncoder :
     ###   nv_map の変数によって終端になる場合と孤立する場合がある．
     ### - それ以外
     ###   全て選ばれないか2つの枝が選ばれる．
-    def __make_edge_constraint(self, node, no_slack) :
+    def __make_edge_constraint(self, node, no_slack, use_uvar) :
         solver = self.__solver
         graph = self.__graph
 
@@ -501,12 +501,18 @@ class CnfEncoder :
             solver.add_exact_one(evar_list)
 
             # 同時にラベルの変数を固定する．
-            self.__make_label_constraint(node, node.terminal_id)
+            net_id = node.terminal_id
+            label = graph.label(net_id, node.z)
+            assert label != -1
+            self.__make_label_constraint(node, label)
         elif node.is_via :
             # node がビアの場合
             # この層に終端を持つ線分と結びついている時はただ一つの枝が選ばれる．
             via_id = node.via_id
             for net_id in graph.via_net_list(via_id) :
+                label = graph.label(net_id, node.z)
+                if label == -1 :
+                    continue
                 cvar = self.__nv_map[net_id][via_id]
                 solver.set_conditional_literals([cvar])
                 node1, node2 = graph.terminal_node_pair(net_id)
@@ -520,14 +526,13 @@ class CnfEncoder :
                     solver.add_exact_one(evar_list)
 
                     # ラベルの制約を追加する．
-                    self.__make_label_constraint(node, net_id)
+                    self.__make_label_constraint(node, label)
                 solver.clear_conditional_literals()
         else :
             if no_slack :
                 # 常に２個の枝が選ばれる．
                 solver.add_exact_two(evar_list)
-            else :
-                # ０個か２個の枝が選ばれる．
+            elif self.__use_uvar :
                 uvar = self.__uvar_list[node.id]
                 solver.add_at_most_two(evar_list)
                 solver.add_at_least_two(evar_list, cvar_list = [uvar])
@@ -535,12 +540,18 @@ class CnfEncoder :
                 for evar in evar_list :
                     solver.add_clause([~evar])
                 solver.clear_conditional_literals()
+            else :
+                # ０個か２個の枝が選ばれる．
+                solver.add_at_most_two(evar_list)
+                solver.add_not_one(evar_list)
 
     ### @brief via_id に関してただ一つの線分が選ばれるという制約を作る．
     def __make_via_net_constraint(self, via_id) :
         graph = self.__graph
+
         # このビアに関係するネットを調べ，対応するビア割り当て変数のリストを作る．
-        vars_list = [self.__nv_map[net_id][via_id] for net_id in graph.via_net_list(via_id)]
+        vars_list = [self.__nv_map[graph.multi_net_id(net_id)][via_id] \
+                     for net_id in graph.via_net_list(via_id)]
 
         # この変数に対する one-hot 制約を作る．
         solver = self.__solver

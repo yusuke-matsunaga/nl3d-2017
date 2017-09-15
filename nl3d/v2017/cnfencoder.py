@@ -8,6 +8,7 @@
 ### All rights reserved.
 
 import math
+import time
 from nl3d.router import Router
 from pym_sat import SatSolver, Bool3
 
@@ -28,6 +29,7 @@ class CnfEncoder :
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
+        self.__time0 = time.time()
 
     ### @brief 基本的な制約を作る．
     ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
@@ -55,7 +57,7 @@ class CnfEncoder :
             self.__node_vars_list = [[solver.new_variable() for i in range(0, nn)] \
                                      for node in graph.node_list]
 
-        if not no_slack :
+        if not no_slack and False :
             # 節点が使われている時 True になる変数を用意する．
             self.__uvar_list = [solver.new_variable() for node in graph.node_list]
 
@@ -325,6 +327,8 @@ class CnfEncoder :
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
     def solve(self, var_limit) :
+        self.__time1 = time.time()
+        print(' CPU time for CNF generating: {:7.2f}s'.format(self.__time1 - self.__time0))
         solver = self.__solver
         print('SAT start')
         print(' # of variables: {}'.format(solver.variable_num()))
@@ -335,6 +339,8 @@ class CnfEncoder :
             return 'Abort', None
         stat, model = solver.solve()
         print('    end')
+        self.__time2 = time.time()
+        print(' CPU time for SAT solving:    {:7.2f}s'.format(self.__time2 - self.__time1))
         if stat == Bool3.TRUE :
             verbose = False
             net_num = self.__graph.net_num
@@ -453,11 +459,19 @@ class CnfEncoder :
             else :
                 # uvar が True の時は2つの枝が選ばれる．
                 # そうでなければ選ばれない．
+                """
                 uvar = self.node_uvar(node)
-                solver.add_at_most_two(evar_list)
-                solver.add_at_least_two(evar_list, cvar_list = [uvar])
+                if self.__old_type and False :
+                    add_at_most_two(solver, evar_list)
+                    add_at_least_two(solver, evar_list, cvar_list = [uvar])
+                else :
+                    solver.add_at_most_two(evar_list)
+                    solver.add_at_least_two(evar_list, cvar_list = [uvar])
                 for evar in evar_list :
                     solver.add_clause([ uvar, ~evar])
+                """
+                solver.add_at_most_two(evar_list)
+                solver.add_not_one(evar_list)
 
     ## @brief 枝の両端のノードのラベルに関する制約を作る．
     # @param[in] edge 対象の枝

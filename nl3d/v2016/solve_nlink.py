@@ -55,7 +55,7 @@ def plan_A(graph, var_limit, binary_encoding) :
     # 問題を表す CNF式を生成する．
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
-    enc.make_base_constraint(True)
+    enc.make_base_constraint(True, False)
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 
@@ -71,7 +71,7 @@ def plan_B11(graph, var_limit, binary_encoding) :
     # 問題を表す CNF式を生成する．
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
-    enc.make_base_constraint(False)
+    enc.make_base_constraint(False, False)
     enc.make_lshape_constraint()
     enc.make_yshape_constraint()
     #enc.make_wshape_constraint()
@@ -89,7 +89,7 @@ def plan_B10(graph, var_limit, binary_encoding) :
     # 問題を表す CNF式を生成する．
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
-    enc.make_base_constraint(False)
+    enc.make_base_constraint(False, False)
     enc.make_lshape_constraint()
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
@@ -106,7 +106,7 @@ def plan_B01(graph, var_limit, binary_encoding) :
     # 問題を表す CNF式を生成する．
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
-    enc.make_base_constraint(False)
+    enc.make_base_constraint(False, False)
     enc.make_yshape_constraint()
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
@@ -123,7 +123,7 @@ def plan_C(graph, var_limit, binary_encoding) :
     # 問題を表す CNF式を生成する．
     enc = CnfEncoder(graph, solver_type, binary_encoding)
 
-    enc.make_base_constraint(False)
+    enc.make_base_constraint(False, False)
     #enc.make_wshape_constraint()
     #enc.make_w2shape_constraint()
 

@@ -8,6 +8,7 @@
 ### All rights reserved.
 
 import math
+import time
 from nl3d.router import Router
 from pym_sat import SatSolver, Bool3
 
@@ -28,6 +29,7 @@ class CnfEncoder :
         self.__graph = graph
         self.__solver = solver
         self.__binary_encoding = binary_encoding
+        self.__time0 = time.time()
 
     ### @brief 基本的な制約を作る．
     ### @param[in] no_slack すべてのマス目を使う制約を入れるとき True にするフラグ
@@ -384,6 +386,8 @@ class CnfEncoder :
     ## - result は 'OK', 'NG', 'Abort' の3種類
     ## - solution はナンバーリンクの解
     def solve(self, var_limit) :
+        self.__time1 = time.time()
+        print(' CPU time for CNF generating: {:7.2f}s'.format(self.__time1 - self.__time0))
         solver = self.__solver
         print('SAT start')
         print(' # of variables: {}'.format(solver.variable_num()))
@@ -394,6 +398,8 @@ class CnfEncoder :
             return 'Abort', None
         stat, model = solver.solve()
         print('    end')
+        self.__time2 = time.time()
+        print(' CPU time for SAT solving:    {:7.2f}s'.format(self.__time2 - self.__time1))
         if stat == Bool3.TRUE :
             verbose = False
             net_num = self.__graph.net_num
