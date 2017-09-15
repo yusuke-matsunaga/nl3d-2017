@@ -22,7 +22,7 @@ LINE_NUM   = re.compile('^LINE_NUM +([0-9]+)$', re.IGNORECASE)
 LINE2D     = re.compile('^LINE#(\d+) +\((\d+),(\d+)\)[- ]\((\d+),(\d+)\)$', re.IGNORECASE)
 LINE3D     = re.compile('^LINE#(\d+) +\((\d+),(\d+),(\d+)\)[- ]\((\d+),(\d+),(\d+)\)$', re.IGNORECASE)
 VIA3D_name = re.compile('^VIA#([a-z]+) +(\((\d+),(\d+),(\d+)\))+', re.IGNORECASE)
-VIA3D_pos  = re.compile('[- ]\((\d+),(\d+),(\d+)\)$', re.IGNORECASE)
+VIA3D_pos  = re.compile('[- ]\((\d+),(\d+),(\d+)\)', re.IGNORECASE)
 LAYER_name = re.compile('^LAYER ([0-9]+)$', re.IGNORECASE)
 
 
@@ -163,8 +163,14 @@ class ADC_Reader :
 
             self.__cur_line = line
 
-            # SIZE 行の処理
-            if self.__read_SIZE() :
+            # SIZE(2D) 行の処理
+            if self.__read_SIZE2D() :
+                self.__solution.set_size(self.__dim)
+                self.__cur_y = self.__dim.height
+                continue;
+
+            # SIZE(3D) 行の処理
+            if self.__read_SIZE3D() :
                 self.__solution.set_size(self.__dim)
                 self.__cur_y = self.__dim.height
                 continue;
