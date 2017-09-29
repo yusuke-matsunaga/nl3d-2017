@@ -62,15 +62,10 @@ class CnfEncoder :
         # __nv_map[net_id][via_id] に net_id の線分を via_id のビアに接続する時
         # True となる変数を入れる．
         vn = graph.via_num
-        mn = graph.multi_net_num
-        assert vn == mn
+        nn = graph.net_num
         self.__nv_map = [[solver.new_variable() \
                           for via_id in range(0, vn)] \
-                         for multi_net_id in range(0, mn)]
-
-        if self.__use_uvar :
-            # 節点が使われている時 True になる変数を用意する．
-            self.__uvar_list = [solver.new_variable() for node in graph.node_list]
+                         for net_id in range(0, nn)]
 
         # 各節点に対して隣接する枝の条件を作る．
         for node in graph.node_list :
@@ -85,7 +80,7 @@ class CnfEncoder :
             self.__make_via_net_constraint(via_id)
 
         # 各線分についてただ一つのビアが割り当てられるという制約を作る．
-        for net_id in graph.multi_net_list :
+        for net_id in range(0, nn) :
             self.__make_net_via_constraint(net_id)
 
         # U字制約を作る．
@@ -550,8 +545,7 @@ class CnfEncoder :
         graph = self.__graph
 
         # このビアに関係するネットを調べ，対応するビア割り当て変数のリストを作る．
-        vars_list = [self.__nv_map[graph.multi_net_id(net_id)][via_id] \
-                     for net_id in graph.via_net_list(via_id)]
+        vars_list = [self.__nv_map[net_id][via_id] for net_id in graph.via_net_list(via_id)]
 
         # この変数に対する one-hot 制約を作る．
         solver = self.__solver

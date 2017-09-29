@@ -346,6 +346,7 @@ class Graph :
         self.__net_num = problem.net_num
         self.__via_num = problem.via_num
         self.__has_via = True if self.__via_num > 0 else False
+        self.__label_num = 0
 
         if rule is None :
             rule = guess_rule(problem)
@@ -401,7 +402,7 @@ class Graph :
             node2.set_terminal(net_id)
             self.__terminal_node_pair_list.append((node1, node2))
 
-        if format == 'adc2016' :
+        if rule == 'adc2016' :
             # 各層ごとに現れるネット番号のリストを作る．
             self.__terminal_node_pair_list = []
             self.__multi_net_list = []
@@ -515,23 +516,6 @@ class Graph :
     ### @param[in] net_id 線分番号
     def terminal_node_pair(self, net_id) :
         return self.__terminal_node_pair_list[net_id]
-
-    ### @brief 多層ネット数
-    @property
-    def multi_net_num(self) :
-        return len(self.__multi_net_list)
-
-    ### @brief 多層ネットのネット番号のリスト
-    @property
-    def multi_net_list(self) :
-        return self.__multi_net_list
-
-    ### @brief 線分番号から多層ネット番号を得る．
-    ### @param[in] net_id 線分番号
-    ###
-    ### net_id が多層ネットでない場合には -1 を返す．
-    def multi_net_id(self, net_id) :
-        return self.__multi_net_id_map[net_id]
 
     ### @brief 線分番号を表すラベル数
     ###
