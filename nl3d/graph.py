@@ -308,7 +308,7 @@ class Edge :
 
 
 ### @brief デフォルトの形式を推定する．
-def guess_format(problem) :
+def guess_rule(problem) :
     if problem.depth == 1 :
         return 'adc2015'
     if problem.via_num > 0 :
@@ -331,29 +331,31 @@ class Graph :
 
     ### @brief 初期化
     ### @param[in] problem 問題を表すオブジェクト(Problem)
-    ### @param[in] format 問題の形式('adc2015', 'adc2016', 'adc2017')
-    def __init__(self, problem, format = None) :
-        self.set_problem(problem, format)
+    ### @param[in] rule 問題の形式('adc2015', 'adc2016', 'adc2017')
+    def __init__(self, problem, rule = None) :
+        self.set_problem(problem, rule)
 
     ### @brief 問題を設定する．
     ### @param[in] problem 問題を表すオブジェクト(Problem)
-    ### @param[in] format 問題の形式('adc2015', 'adc2016', 'adc2017')
-    def set_problem(self, problem, format = None) :
-        if format :
-            assert format == 'adc2015' or format == 'adc2016' or format == 'adc2017'
+    ### @param[in] rule 問題の形式('adc2015', 'adc2016', 'adc2017')
+    def set_problem(self, problem, rule = None) :
+        if rule :
+            assert rule == 'adc2015' or rule == 'adc2016' or rule == 'adc2017'
         dimension = problem.dimension
         self.__dim = dimension
         self.__net_num = problem.net_num
         self.__via_num = problem.via_num
         self.__has_via = True if self.__via_num > 0 else False
 
-        if format is None :
-            format = guess_format(problem)
-        elif (dimension.depth > 1 and format == 'adc2015') or \
-               (problem.via_num > 0 and format == 'adc2017') :
-            format = guess_format(problem)
-            print('Graph.set_problem(): format error: {} is assumed.'.format(format))
-        self.__format = format
+        if rule is None :
+            rule = guess_rule(problem)
+            print('Graph.set_problem(): rule is not specified: {} is assumed.'.format(rule))
+        elif (dimension.depth > 1 and rule == 'adc2015') or \
+             (dimension.depth == 1 and rule != 'adc2015') or \
+             (problem.via_num > 0 and rule == 'adc2017') :
+            rule = guess_rule(problem)
+            print('Graph.set_problem(): illegal rule: {} is assumed.'.format(rule))
+        self.__rule = rule
 
         # 節点を作る．
         # node_array[index] に (x, y, z) の節点が入る．
@@ -380,7 +382,7 @@ class Graph :
                     node2 = self.node(x, y + 1, z)
                     self.__new_edge(node1, node2, 1)
 
-        if format == 'adc2017' :
+        if rule == 'adc2017' :
             # z 方向の枝を作る．
             for x in range(0, self.width) :
                 for y in range(0, self.height) :
@@ -429,8 +431,8 @@ class Graph :
 
     ### @brief 問題の形式
     @property
-    def format(self) :
-        return self.__format
+    def rule(self) :
+        return self.__rule
 
     ### @brief 問題のサイズ
     @property

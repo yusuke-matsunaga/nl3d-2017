@@ -33,20 +33,17 @@ ifile = args.input
 # 出力ファイル名 or None
 ofile = args.answer
 
-# ファイルリーダーの作成
-reader = nl3d.ADC_Reader()
-
 problem = None
 solution = None
 with open(ifile, 'rt') as fin :
-    problem = reader.read_problem(fin)
+    problem = nl3d.read_problem(fin)
     if not problem :
         print('{}: read failed.'.format(ifile))
         exit(-1)
 
     if ofile :
         with open(ofile, 'rt') as fin2 :
-            solution = reader.read_solution(fin2)
+            solution = nl3d.read_solution(fin2)
             if not solution :
                 print('{}: read failed.'.format(ofile))
                 exit(-1)

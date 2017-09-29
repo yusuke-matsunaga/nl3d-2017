@@ -56,11 +56,8 @@ format = args.format
 # verbose フラグ
 verbose = args.verbose
 
-# ファイルリーダーの作成
-reader = nl3d.ADC_Reader()
-
 with open(ifile, 'r') as fin :
-    problem = reader.read_problem(fin)
+    problem = nl3d.read_problem(fin)
 
     if verbose :
         print('width    : {}'.format(problem.width))
@@ -71,17 +68,17 @@ with open(ifile, 'r') as fin :
 
     graph = nl3d.Graph(problem, format)
 
-    if graph.format == 'adc2015' :
+    if graph.rule == 'adc2015' :
         # ADC2015 フォーマット
         status, solution = nl3d.v2015.solve_nlink(graph, var_limit, binary_encoding)
-    elif graph.format == 'adc2016' :
+    elif graph.rule == 'adc2016' :
         # ADC2016 フォーマット
         status, solution = nl3d.v2016.solve_nlink(graph, var_limit, binary_encoding)
-    elif graph.format == 'adc2017' :
+    elif graph.rule == 'adc2017' :
         # ADC2017 フォーマット
         status, solution = nl3d.v2017.solve_nlink(graph, var_limit, binary_encoding)
     else :
-        print('Unknown format {}, ignored.'.format(graph.format))
+        print('Unknown rule {}, ignored.'.format(graph.rule))
         status, solution = 'Abort', None
 
     print(status)
