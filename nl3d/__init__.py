@@ -44,7 +44,7 @@ def read_problem(fin) :
 ###    solution = read_solution(fin)
 ###    ...
 ### @endcode
-def read_solution(self, fin) :
+def read_solution(fin) :
     from nl3d.adc_reader import ADC_Reader
     reader = ADC_Reader()
     return reader.read_solution(fin)
